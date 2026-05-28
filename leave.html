@@ -147,8 +147,8 @@ function renderBalanceCards() {
         <span style="font-size:22px;font-weight:700;color:${remaining<=2?'var(--danger)':remaining<=5?'var(--warning)':'var(--primary)'}">${remaining}</span>
       </div>
       <div class="text-sm text-muted">ใช้ไป ${used} / ทั้งหมด ${total} วัน</div>
-      <div class="progress-bar" style="margin-top:6px">
-        <div class="progress-fill ${remaining<=2?'danger':remaining<=5?'warning':''}" style="width:${pct(used,total)}%"></div>
+      <div class="leave-bar-wrap">
+        <div class="leave-bar-fill" style="width:${pct(used,total)}%;background:${remaining<=2?'var(--danger)':remaining<=5?'var(--warning)':type.color}"></div>
       </div>
     </div>
   `).join('');

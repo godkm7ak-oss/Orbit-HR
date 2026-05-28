@@ -182,9 +182,9 @@ function filterTable() {
   body.innerHTML = employees.map(e=>`
     <tr>
       <td><div class="table-user">${renderAvatar(e,'md')}<div><div class="user-name">${e.name}</div><div class="user-sub">${e.email||'—'}</div></div></div></td>
-      <td><span class="badge badge-gray" style="font-family:monospace;letter-spacing:1px">${e.employeeCode||'Admin'}</span></td>
+      <td><span class="badge badge-neutral" style="font-family:monospace;letter-spacing:1px">${e.employeeCode||'Admin'}</span></td>
       <td><div style="font-size:13px;font-weight:500">${e.department||'—'}</div><div style="font-size:12px;color:var(--text-muted)">${e.position||'—'}</div></td>
-      <td><span class="badge ${e.role==='admin'?'badge-primary':e.role==='hr'?'badge-info':e.role==='manager'?'badge-warning':'badge-gray'}">${roleLabel(e.role)}</span></td>
+      <td><span class="badge ${e.role==='admin'?'badge-primary':e.role==='hr'?'badge-info':e.role==='manager'?'badge-warning':'badge-neutral'}">${roleLabel(e.role)}</span></td>
       <td style="color:var(--text-muted)">${e.startDate?formatDateShort(e.startDate):'—'}</td>
       <td>
         <div class="btn-group">
@@ -252,7 +252,7 @@ function viewEmployee(id) {
       <div>
         <div style="font-size:20px;font-weight:700">${emp.name}</div>
         <div style="font-size:14px;color:var(--text-secondary);margin-top:2px">${emp.department||''} · ${emp.position||''}</div>
-        <span class="badge ${emp.role==='admin'?'badge-primary':emp.role==='hr'?'badge-info':'badge-gray'} mt-2">${roleLabel(emp.role)}</span>
+        <span class="badge ${emp.role==='admin'?'badge-primary':emp.role==='hr'?'badge-info':'badge-neutral'} mt-2">${roleLabel(emp.role)}</span>
       </div>
     </div>
 
