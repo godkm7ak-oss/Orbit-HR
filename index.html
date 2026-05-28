@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit HR — ระบบจัดการพนักงานออนไลน์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #4F46E5; --primary-dark: #3730A3; --accent: #10B981;
+  --bg: #F8F9FF; --surface: #fff; --text: #111827; --muted: #6B7280;
+  --border: #E5E7EB; --font: 'Inter','Noto Sans Thai',sans-serif;
+}
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+a { text-decoration: none; color: inherit; }
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+.nav-logo-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 17px; }
+.nav-links { display: flex; align-items: center; gap: 28px; }
+.nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
+.nav-links a:hover { color: var(--text); }
+.nav-cta { display: flex; align-items: center; gap: 10px; }
+.btn-outline { padding: 8px 18px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 500; background: var(--surface); cursor: pointer; transition: all .15s; color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-primary { padding: 9px 20px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-primary:hover { background: var(--primary-dark); }
+
+/* HERO */
+.hero {
+  text-align: center; padding: 96px 24px 64px;
+  background: linear-gradient(180deg, #EEF2FF 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #EEF2FF; color: var(--primary); border: 1px solid #C7D2FE;
+  padding: 4px 14px; border-radius: 99px; font-size: 12.5px; font-weight: 600;
+  margin-bottom: 24px;
+}
+.hero h1 {
+  font-size: clamp(32px, 5vw, 56px); font-weight: 800; line-height: 1.15;
+  letter-spacing: -.5px; color: #0F172A; margin-bottom: 20px;
+}
+.hero h1 span { color: var(--primary); }
+.hero p {
+  font-size: 18px; color: var(--muted); max-width: 560px; margin: 0 auto 36px;
+  line-height: 1.7;
+}
+.hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-hero {
+  padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600;
+  cursor: pointer; border: none; transition: all .2s;
+}
+.btn-hero.primary { background: var(--primary); color: #fff; box-shadow: 0 4px 20px rgba(79,70,229,.35); }
+.btn-hero.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,70,229,.4); }
+.btn-hero.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.btn-hero.secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+/* SOCIAL PROOF */
+.social-proof { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+.social-proof strong { color: var(--text); }
+
+/* FEATURES */
+.section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+.section-header { text-align: center; margin-bottom: 56px; }
+.section-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; }
+.section-header h2 { font-size: clamp(24px, 4vw, 38px); font-weight: 700; color: #0F172A; margin-bottom: 14px; }
+.section-header p { font-size: 16px; color: var(--muted); max-width: 480px; margin: 0 auto; }
+
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+.feature-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 28px 24px; transition: all .2s;
+}
+.feature-card:hover { border-color: #C7D2FE; box-shadow: 0 8px 32px rgba(79,70,229,.1); transform: translateY(-3px); }
+.feature-icon {
+  width: 48px; height: 48px; border-radius: 12px; margin-bottom: 18px;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.feature-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
+.feature-card p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+.feature-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+.feature-list li { font-size: 13.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.feature-list li::before { content: '✓'; color: var(--accent); font-weight: 700; }
+
+/* HOW IT WORKS */
+.how-section { background: #F0F4FF; padding: 80px 24px; }
+.steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 32px; max-width: 900px; margin: 0 auto; }
+.step { text-align: center; }
+.step-num { width: 52px; height: 52px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; margin: 0 auto 16px; }
+.step h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.step p { font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+
+/* PRICING */
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 960px; margin: 0 auto; }
+.plan-card {
+  background: var(--surface); border: 2px solid var(--border); border-radius: 20px;
+  padding: 32px 28px; position: relative; transition: all .2s;
+}
+.plan-card.popular {
+  border-color: var(--primary);
+  box-shadow: 0 8px 32px rgba(79,70,229,.15);
+}
+.popular-badge {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  background: var(--primary); color: #fff; padding: 4px 18px; border-radius: 99px;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.plan-name { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+.plan-price { font-size: 40px; font-weight: 800; color: #0F172A; line-height: 1; margin-bottom: 4px; }
+.plan-price span { font-size: 16px; font-weight: 500; color: var(--muted); }
+.plan-desc { font-size: 13px; color: var(--muted); margin: 10px 0 24px; }
+.plan-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.plan-features li { display: flex; gap: 8px; font-size: 13.5px; align-items: flex-start; }
+.plan-features li .check { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+.plan-features li .cross { color: #D1D5DB; }
+.plan-btn {
+  width: 100%; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600;
+  cursor: pointer; border: none; transition: all .15s;
+}
+.plan-btn.primary { background: var(--primary); color: #fff; }
+.plan-btn.primary:hover { background: var(--primary-dark); }
+.plan-btn.outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+.plan-btn.outline:hover { border-color: var(--primary); color: var(--primary); }
+
+/* FAQ */
+.faq-list { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.faq-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.faq-question {
+  padding: 18px 22px; font-size: 15px; font-weight: 500; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: none; border: none; width: 100%; text-align: left; font-family: var(--font); color: var(--text);
+}
+.faq-question::after { content: '+'; font-size: 20px; color: var(--muted); flex-shrink: 0; }
+.faq-item.open .faq-question::after { content: '−'; color: var(--primary); }
+.faq-answer { padding: 0 22px; max-height: 0; overflow: hidden; transition: all .3s; font-size: 14px; color: var(--muted); line-height: 1.7; }
+.faq-item.open .faq-answer { padding: 0 22px 18px; max-height: 300px; }
+
+/* CTA SECTION */
+.cta-section {
+  background: linear-gradient(135deg, var(--primary) 0%, #3730A3 100%);
+  padding: 80px 24px; text-align: center; color: #fff;
+}
+.cta-section h2 { font-size: 32px; font-weight: 700; margin-bottom: 14px; }
+.cta-section p { font-size: 16px; opacity: .8; margin-bottom: 32px; }
+.btn-white {
+  padding: 14px 32px; background: #fff; color: var(--primary); border: none;
+  border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;
+  transition: all .2s;
+}
+.btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+
+/* FOOTER */
+footer {
+  background: #0F172A; color: #94A3B8; padding: 40px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px; font-size: 13px;
+}
+footer .footer-logo { color: #fff; font-weight: 700; font-size: 15px; }
+footer a { color: #94A3B8; }
+footer a:hover { color: #fff; }
+
+/* Mobile */
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .hero { padding: 64px 20px 48px; }
+  .section { padding: 56px 20px; }
+  footer { flex-direction: column; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">O</div>
+    <span>Orbit HR</span>
+  </div>
+  <div class="nav-links">
+    <a href="#features">ฟีเจอร์</a>
+    <a href="#how">วิธีใช้งาน</a>
+    <a href="#pricing">ราคา</a>
+    <a href="#faq">คำถาม</a>
+  </div>
+  <div class="nav-cta">
+    <button class="btn-outline" onclick="window.location.href='auth.html'">เข้าสู่ระบบ</button>
+    <button class="btn-primary" onclick="window.location.href='auth.html#register'">ทดลองใช้ฟรี</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">🚀 ระบบ HR ออนไลน์สำหรับองค์กรไทย</div>
+  <h1>จัดการพนักงาน<br><span>ง่าย เร็ว ไม่ต้องใช้กระดาษ</span></h1>
+  <p>ระบบครบจบในที่เดียว — ลางาน, เช็คอิน GPS, ตารางกะ, ประชุม ทีมงานทำได้จากมือถือทุกที่ทุกเวลา</p>
+  <div class="hero-cta">
+    <button class="btn-hero primary" onclick="startDemo()">ทดลองใช้ Demo ฟรี</button>
+    <button class="btn-hero secondary" onclick="window.location.href='auth.html#register'">สมัครใช้งาน 14 วันฟรี</button>
+  </div>
+  <div class="social-proof" style="margin-top:36px">
+    ✓ ไม่ต้องใช้บัตร &nbsp;·&nbsp; ✓ ตั้งค่าใน 5 นาที &nbsp;·&nbsp; ✓ รองรับมือถือ 100%
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-header">
+    <div class="section-label">ฟีเจอร์ครบครัน</div>
+    <h2>ทุกอย่างที่ HR และทีมงานต้องการ</h2>
+    <p>ออกแบบมาสำหรับองค์กรไทย ใช้งานง่าย แม้ไม่เก่งเทคโนโลยี</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#EEF2FF;color:#4F46E5">📋</div>
+      <h3>ระบบลางาน</h3>
+      <p>พนักงานยื่นคำขอลาออนไลน์ หัวหน้าอนุมัติได้ทันที ไม่ต้องรอกระดาษ</p>
+      <ul class="feature-list">
+        <li>ลาป่วย ลาพักร้อน ลากิจ ลาฉุกเฉิน</li>
+        <li>ดูวันลาคงเหลือ Real-time</li>
+        <li>อนุมัติ/ปฏิเสธพร้อมเหตุผล</li>
+        <li>ประวัติย้อนหลังสมบูรณ์</li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#ECFDF5;color:#10B981">📍</div>
+      <h3>เช็คอิน GPS</h3>
+      <p>พนักงานเช็คอิน-เช็คเอาท์จากมือถือ ระบบตรวจตำแหน่งอัตโนมัติ ป้องกันโกง</p>
+      <ul class="feature-list">
+        <li>ตรวจสอบตำแหน่ง GPS ทันที</li>
+        <li>กำหนดรัศมีพื้นที่ได้เอง</li>
+        <li>บันทึกสาย/OT อัตโนมัติ</li>
+        <li>Export รายงาน CSV/PDF</li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#FFFBEB;color:#F59E0B">📅</div>
+      <h3>ตารางงาน & กะ</h3>
+      <p>จัดกะทีมทั้งเดือนในคลิกเดียว พนักงานเห็นตารางตัวเองจากมือถือได้เลย</p>
+      <ul class="feature-list">
+        <li>ปฏิทินแบบ Calendar UI</li>
+        <li>รองรับหลายกะ หลายแผนก</li>
+        <li>ขอเปลี่ยนกะผ่านระบบ</li>
+        <li>แจ้งเตือนเมื่อตารางเปลี่ยน</li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#F0F9FF;color:#0EA5E9">🔔</div>
+      <h3>ประชุม & ประกาศ</h3>
+      <p>สร้างนัดประชุม แจ้งเตือนอัตโนมัติ ลืมประชุมเพราะ LINE หาย ไม่มีอีกแล้ว</p>
+      <ul class="feature-list">
+        <li>สร้างนัดประชุม เลือกผู้เข้าร่วม</li>
+        <li>แจ้งเตือนในระบบทันที</li>
+        <li>ประกาศบริษัท แบบปักหมุดได้</li>
+        <li>ประวัติประชุมย้อนหลัง</li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#FDF2F8;color:#EC4899">👥</div>
+      <h3>จัดการพนักงาน</h3>
+      <p>เพิ่ม แก้ไข จัดการพนักงานทั้งองค์กร แบ่งแผนก กำหนดสิทธิ์ได้ครบ</p>
+      <ul class="feature-list">
+        <li>Admin / HR / Manager / Employee</li>
+        <li>รหัสพนักงานเข้าระบบง่าย</li>
+        <li>รูปโปรไฟล์ อัปโหลดได้</li>
+        <li>รองรับหลายสาขา</li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#F0FDF4;color:#16A34A">📊</div>
+      <h3>รายงาน & วิเคราะห์</h3>
+      <p>สรุปข้อมูลการทำงาน ออก Report ได้ทันที ไม่ต้องนั่งรวมข้อมูลจากกระดาษ</p>
+      <ul class="feature-list">
+        <li>Dashboard สรุปภาพรวมทีม</li>
+        <li>รายงานการขาด/ลา/สาย</li>
+        <li>Export CSV รายเดือน</li>
+        <li>กราฟแนวโน้มรายปี</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="how">
+  <div style="max-width:1100px;margin:0 auto">
+    <div class="section-header">
+      <div class="section-label">ขั้นตอนง่ายๆ</div>
+      <h2>เริ่มต้นใช้งานใน 3 ขั้นตอน</h2>
+    </div>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>สมัครและตั้งบริษัท</h3>
+        <p>กรอกชื่อบริษัท ระบบสร้าง "รหัสบริษัท" ให้อัตโนมัติ พร้อมตั้งค่ากะงานและประเภทการลา</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>เพิ่มพนักงาน</h3>
+        <p>เพิ่มพนักงานในระบบ แชร์รหัสบริษัท + รหัสพนักงานให้แต่ละคน ไม่ต้องจำอีเมล</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>พร้อมใช้งานทันที</h3>
+        <p>พนักงานเข้าระบบจากมือถือ เช็คอิน ขอลา ดูตาราง ได้เลยตั้งแต่วันแรก</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section" id="pricing">
+  <div class="section-header">
+    <div class="section-label">ราคา</div>
+    <h2>ราคาโปร่งใส ไม่มีค่าซ่อน</h2>
+    <p>ทดลองใช้ฟรี 14 วัน ไม่ต้องใช้บัตรเครดิต</p>
+  </div>
+  <div class="pricing-grid">
+    <div class="plan-card">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">฿490<span>/เดือน</span></div>
+      <div class="plan-desc">สำหรับธุรกิจขนาดเล็ก ร้านค้า ร้านอาหาร</div>
+      <ul class="plan-features">
+        <li><span class="check">✓</span> พนักงานสูงสุด 20 คน</li>
+        <li><span class="check">✓</span> ระบบลางาน</li>
+        <li><span class="check">✓</span> เช็คอิน GPS</li>
+        <li><span class="check">✓</span> ตารางกะ</li>
+        <li><span class="cross">✗</span> รายงาน Export</li>
+        <li><span class="cross">✗</span> หลายสาขา</li>
+      </ul>
+      <button class="plan-btn outline" onclick="window.location.href='auth.html#register'">เริ่มทดลองใช้ฟรี</button>
+    </div>
+    <div class="plan-card popular">
+      <div class="popular-badge">⭐ แนะนำ</div>
+      <div class="plan-name">Professional</div>
+      <div class="plan-price">฿1,490<span>/เดือน</span></div>
+      <div class="plan-desc">สำหรับธุรกิจขนาดกลาง โรงแรม คลินิก</div>
+      <ul class="plan-features">
+        <li><span class="check">✓</span> พนักงานสูงสุด 100 คน</li>
+        <li><span class="check">✓</span> ระบบลางาน + อนุมัติ</li>
+        <li><span class="check">✓</span> เช็คอิน GPS หลายสาขา</li>
+        <li><span class="check">✓</span> ตารางกะ + ประชุม</li>
+        <li><span class="check">✓</span> Export CSV/รายงาน</li>
+        <li><span class="check">✓</span> Dashboard Analytics</li>
+      </ul>
+      <button class="plan-btn primary" onclick="window.location.href='auth.html#register'">เริ่มทดลองใช้ฟรี</button>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price">฿3,990<span>/เดือน</span></div>
+      <div class="plan-desc">สำหรับองค์กรขนาดใหญ่ หลายสาขา</div>
+      <ul class="plan-features">
+        <li><span class="check">✓</span> พนักงานไม่จำกัด</li>
+        <li><span class="check">✓</span> ทุกฟีเจอร์ใน Pro</li>
+        <li><span class="check">✓</span> Custom Leave Types</li>
+        <li><span class="check">✓</span> API สำหรับ Integration</li>
+        <li><span class="check">✓</span> Support ลำดับต้น</li>
+        <li><span class="check">✓</span> ออนบอร์ดทีม</li>
+      </ul>
+      <button class="plan-btn outline" onclick="window.location.href='auth.html#register'">ติดต่อเรา</button>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq" style="background:var(--surface);max-width:100%;padding:80px 24px">
+  <div style="max-width:1100px;margin:0 auto">
+    <div class="section-header">
+      <div class="section-label">คำถามที่พบบ่อย</div>
+      <h2>มีคำถาม? เราตอบได้</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">ทดลองใช้ฟรีหมายความว่าอย่างไร?</button>
+        <div class="faq-answer">ทดลองใช้งานได้เต็มรูปแบบ 14 วัน ครบทุกฟีเจอร์ ไม่ต้องใช้บัตรเครดิต ไม่มีการเรียกเก็บเงินอัตโนมัติ</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">พนักงานต้องมีอีเมลไหม?</button>
+        <div class="faq-answer">ไม่จำเป็น — พนักงานทั่วไปเข้าระบบด้วย "รหัสบริษัท" + "รหัสพนักงาน" แค่ 2 ช่องเท่านั้น ง่ายมาก ไม่ต้องจำอีเมล</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">GPS เช็คอินทำงานยังไง?</button>
+        <div class="faq-answer">ระบบใช้ GPS ของมือถือตรวจสอบว่าพนักงานอยู่ในรัศมีที่กำหนดจากสถานที่ทำงาน ถ้าอยู่นอกรัศมีจะเช็คอินไม่ได้ สามารถกำหนดรัศมีได้ตั้งแต่ 50 เมตร ถึงหลาย กม.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">รองรับกี่สาขา?</button>
+        <div class="faq-answer">แพ็กเกจ Professional ขึ้นไปรองรับหลายสาขาได้ไม่จำกัด แต่ละสาขาตั้งตำแหน่ง GPS แยกกันได้</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">ข้อมูลปลอดภัยไหม?</button>
+        <div class="faq-answer">ข้อมูลเข้ารหัส SSL ทุกการรับส่ง และสำรองข้อมูลอัตโนมัติทุกวัน ข้อมูลของคุณเป็นของคุณเท่านั้น</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>พร้อมเริ่มต้นแล้วหรือยัง?</h2>
+  <p>ทดลองใช้งานฟรี 14 วัน ไม่ต้องใช้บัตรเครดิต ตั้งค่าใน 5 นาที</p>
+  <button class="btn-white" onclick="window.location.href='auth.html#register'">เริ่มต้นใช้งานฟรี →</button>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>
+    <div class="footer-logo">Orbit HR</div>
+    <div style="margin-top:4px">ระบบจัดการพนักงานออนไลน์ สำหรับองค์กรไทย</div>
+  </div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap">
+    <a href="#features">ฟีเจอร์</a>
+    <a href="#pricing">ราคา</a>
+    <a href="#faq">คำถาม</a>
+    <a href="auth.html">เข้าสู่ระบบ</a>
+  </div>
+  <div>© 2026 Orbit HR · All rights reserved</div>
+</footer>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script>
+function toggleFaq(btn) {
+  const item = btn.parentElement;
+  document.querySelectorAll('.faq-item.open').forEach(i => { if (i !== item) i.classList.remove('open'); });
+  item.classList.toggle('open');
+}
+
+function startDemo() {
+  DB.seedDemo();
+  window.location.href = 'dashboard.html';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>หน้าหลัก — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('dashboard', 'หน้าหลัก');
+if (user) render();
+
+function render() {
+  const company   = Auth.currentCompany();
+  const isManager = Auth.canApproveLeave(user);
+
+  // Gather data
+  const today     = DB.today();
+  const month     = today.slice(0,7);
+  const allUsers  = DB.Users.getByCompany(user.companyId).filter(u => u.status === 'active');
+  const employees = allUsers.filter(u => u.role !== 'admin');
+  const todayAtt  = DB.Attendance.getByCompany(user.companyId, { date: today });
+  const monthAtt  = DB.Attendance.getByCompany(user.companyId, { month });
+  const pending   = DB.Leaves.getByCompany(user.companyId, { status: 'pending' });
+
+  // My data
+  const myTodayAtt   = DB.Attendance.getTodayByUser(user.id);
+  const myLeaves     = DB.Leaves.getByUser(user.id);
+  const myBalance    = DB.Leaves.getBalance(user.id);
+  const myMeetings   = DB.Meetings.getForUser(user.id).filter(m => m.date >= today).slice(0,3);
+  const mySchedules  = DB.Schedules.getUserWeek(user.id, DB.getMonday(today));
+  const shifts       = DB.Shifts.getByCompany(user.companyId);
+  const shiftMap     = Object.fromEntries(shifts.map(s => [s.id, s]));
+
+  const todaySchedule = mySchedules.find(s => s.date === today);
+  const todayShift    = todaySchedule ? shiftMap[todaySchedule.shiftId] : null;
+
+  const checkedInCount = todayAtt.length;
+  const lateCount      = todayAtt.filter(a => a.status === 'late').length;
+  const monthAbsent    = allUsers.length * 22 - monthAtt.length; // approx
+
+  const main = document.getElementById('main');
+
+  main.innerHTML = `
+    <!-- Greeting -->
+    <div style="margin-bottom:24px">
+      <h2 style="font-size:20px;font-weight:700">สวัสดี, ${user.name.split(' ')[0]} 👋</h2>
+      <p style="color:var(--text-secondary);font-size:14px;margin-top:2px">${formatDate(today)} · ${company?.name || ''}</p>
+    </div>
+
+    ${isManager ? renderManagerStats(checkedInCount, employees.length, lateCount, pending.length) : ''}
+
+    <!-- My status row -->
+    <div class="grid grid-2" style="margin-bottom:20px">
+      ${renderCheckinStatus(myTodayAtt, todayShift)}
+      ${renderTodaySchedule(todayShift, mySchedules, shiftMap, today)}
+    </div>
+
+    <!-- Leave balance -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <span class="card-title">วันลาคงเหลือปีนี้</span>
+        <a href="leave.html" class="btn btn-ghost btn-sm">ดูทั้งหมด →</a>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-4" id="balance-grid">
+          ${renderBalanceCards(myBalance)}
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom row -->
+    <div class="grid grid-2">
+      ${renderUpcomingMeetings(myMeetings)}
+      ${isManager ? renderPendingLeaves(pending) : renderRecentLeaves(myLeaves)}
+    </div>
+
+    ${isManager ? `
+    <!-- Attendance chart -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">
+        <span class="card-title">การเข้างานรายวัน (7 วันล่าสุด)</span>
+      </div>
+      <div class="card-body">
+        <canvas id="attChart" height="80"></canvas>
+      </div>
+    </div>` : ''}
+  `;
+
+  renderBalanceProgressBars(myBalance);
+  if (isManager) renderChart();
+}
+
+function renderManagerStats(checkedIn, total, late, pending) {
+  return `
+  <div class="grid grid-4" style="margin-bottom:20px">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#ECFDF5;color:#10B981">${iconSVG('users','20')}</div>
+      <div class="stat-value">${checkedIn}<span style="font-size:16px;color:var(--text-secondary)">/${total}</span></div>
+      <div class="stat-label">เช็คอินแล้ววันนี้</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFFBEB;color:#F59E0B">${iconSVG('clock','20')}</div>
+      <div class="stat-value" style="color:${late>0?'var(--warning)':'inherit'}">${late}</div>
+      <div class="stat-label">เข้างานสายวันนี้</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FEF2F2;color:#EF4444">${iconSVG('calendar','20')}</div>
+      <div class="stat-value" style="color:${pending>0?'var(--danger)':'inherit'}">${pending}</div>
+      <div class="stat-label">รอการอนุมัติลา</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5">${iconSVG('users','20')}</div>
+      <div class="stat-value">${total}</div>
+      <div class="stat-label">พนักงานทั้งหมด</div>
+    </div>
+  </div>`;
+}
+
+function renderCheckinStatus(rec, shift) {
+  const now = new Date();
+  const timeStr = now.toTimeString().slice(0,5);
+  if (rec) {
+    return `
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:24px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#ECFDF5;color:#10B981;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px">✓</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px">เช็คอินแล้วเวลา</div>
+        <div style="font-size:28px;font-weight:700;color:#10B981">${rec.checkIn} <span style="font-size:14px">น.</span></div>
+        ${rec.lateMinutes > 0 ? `<div class="badge badge-warning" style="margin:8px auto 0">${iconSVG('clock','12')} สาย ${rec.lateMinutes} นาที</div>` : '<div class="badge badge-success" style="margin:8px auto 0">ตรงเวลา</div>'}
+        ${!rec.checkOut ? `<a href="checkin.html" class="btn btn-secondary btn-sm" style="margin-top:14px;display:inline-flex">${iconSVG('map-pin','14')} เช็คเอาท์</a>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:10px">เช็คเอาท์ ${rec.checkOut} น.</div>`}
+      </div>
+    </div>`;
+  }
+  return `
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:24px">
+      <div style="font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary)" id="live-clock">${timeStr}</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin:6px 0 16px">${formatDate(DB.today())}</div>
+      ${shift ? `<div style="margin-bottom:12px"><span class="badge badge-primary">${iconSVG('clock','12')} กะ: ${shift.name} ${shift.startTime}-${shift.endTime}</span></div>` : ''}
+      <a href="checkin.html" class="btn btn-success" style="display:inline-flex;width:100%;justify-content:center">${iconSVG('map-pin','15')} เช็คอินตอนนี้</a>
+    </div>
+  </div>`;
+}
+
+function renderTodaySchedule(todayShift, schedules, shiftMap, today) {
+  const weekDays = ['จ','อ','พ','พฤ','ศ','ส','อา'];
+  const monday = DB.getMonday(today);
+  return `
+  <div class="card">
+    <div class="card-header"><span class="card-title">ตารางสัปดาห์นี้</span><a href="schedule.html" class="btn btn-ghost btn-sm">ดูทั้งหมด →</a></div>
+    <div class="card-body" style="padding:16px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+        ${Array.from({length:7},(_,i)=>{
+          const d = DB.addDays(monday, i);
+          const sch = schedules.find(s=>s.date===d);
+          const sh  = sch ? shiftMap[sch.shiftId] : null;
+          const isToday = d === today;
+          return `<div style="text-align:center;padding:6px 2px;border-radius:8px;background:${isToday?'var(--primary-light)':'transparent'}">
+            <div style="font-size:10px;color:${isToday?'var(--primary)':'var(--text-muted)'};font-weight:500;margin-bottom:4px">${weekDays[i]}</div>
+            ${sh ? `<div style="width:8px;height:8px;border-radius:50%;background:${sh.color};margin:0 auto 2px"></div><div style="font-size:9px;color:var(--text-secondary)">${sh.name.slice(0,2)}</div>` : `<div style="width:8px;height:8px;border-radius:50%;background:var(--border);margin:0 auto 2px"></div>`}
+          </div>`;
+        }).join('')}
+      </div>
+      ${todayShift ? `<div style="margin-top:14px;padding:10px 12px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:${todayShift.color}"></div><div><div style="font-size:12px;font-weight:600;color:var(--primary)">${todayShift.name}</div><div style="font-size:11px;color:var(--text-secondary)">${todayShift.startTime} - ${todayShift.endTime} น.</div></div></div>` : `<div style="margin-top:14px;font-size:13px;color:var(--text-muted);text-align:center">ไม่มีกะงานวันนี้</div>`}
+    </div>
+  </div>`;
+}
+
+function renderBalanceCards(balance) {
+  const types = Object.values(balance);
+  if (!types.length) return '<div style="color:var(--text-muted);font-size:13px">ยังไม่มีประเภทการลา</div>';
+  return types.map(({type, remaining, total, used}) => `
+    <div class="leave-balance-item">
+      <div class="leave-balance-header">
+        <span style="font-size:13px;font-weight:600"><span class="leave-type-dot" style="background:${type.color}"></span>${type.name}</span>
+        <span style="font-size:18px;font-weight:700;color:${remaining<=2?'var(--danger)':remaining<=5?'var(--warning)':'var(--primary)'}">${remaining}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted)">ใช้ไป ${used} / ทั้งหมด ${total} วัน</div>
+      <div class="progress-bar" style="margin-top:6px"><div class="progress-fill ${remaining<=2?'danger':remaining<=5?'warning':''}" style="width:${pct(used,total)}%"></div></div>
+    </div>
+  `).join('');
+}
+
+function renderBalanceProgressBars(balance) {
+  // Already rendered inline above
+}
+
+function renderUpcomingMeetings(meetings) {
+  return `
+  <div class="card">
+    <div class="card-header"><span class="card-title">ประชุมที่กำลังจะมาถึง</span><a href="meetings.html" class="btn btn-ghost btn-sm">ดูทั้งหมด →</a></div>
+    <div class="card-body" style="padding:16px">
+      ${meetings.length === 0 ? '<div class="empty-state" style="padding:24px"><div style="font-size:13px;color:var(--text-muted)">ไม่มีประชุมที่กำลังจะมาถึง</div></div>' :
+      meetings.map(m=>`
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border-light)">
+          <div style="width:40px;height:40px;background:#F0F9FF;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+            <div style="font-size:16px;font-weight:700;color:#0EA5E9;line-height:1">${new Date(m.date).getDate()}</div>
+            <div style="font-size:9px;color:#0EA5E9">${new Date(m.date).toLocaleDateString('th-TH',{month:'short'})}</div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.title}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${m.startTime} น. · ${m.location||m.meetingLink||'—'}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function renderPendingLeaves(pending) {
+  const users = DB.Users.getByCompany(user.companyId);
+  const types = DB.LeaveTypes.getByCompany(user.companyId);
+  const userMap = Object.fromEntries(users.map(u=>[u.id,u]));
+  const typeMap = Object.fromEntries(types.map(t=>[t.id,t]));
+  return `
+  <div class="card">
+    <div class="card-header"><span class="card-title">รอการอนุมัติลา</span><a href="leave.html" class="btn btn-ghost btn-sm">ดูทั้งหมด →</a></div>
+    <div class="card-body" style="padding:16px">
+      ${pending.length === 0 ? '<div style="text-align:center;padding:24px;font-size:13px;color:var(--text-muted)">ไม่มีคำขอรอการอนุมัติ</div>' :
+      pending.slice(0,4).map(l=>{
+        const u = userMap[l.userId]||{};
+        const t = typeMap[l.leaveTypeId]||{};
+        return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
+          ${renderAvatar(u,'sm')}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500">${u.name||'—'}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">${t.name||'—'} · ${l.days} วัน</div>
+          </div>
+          <a href="leave.html" class="btn btn-primary btn-sm">${iconSVG('check','12')} อนุมัติ</a>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderRecentLeaves(leaves) {
+  const types = DB.LeaveTypes.getByCompany(user.companyId);
+  const typeMap = Object.fromEntries(types.map(t=>[t.id,t]));
+  return `
+  <div class="card">
+    <div class="card-header"><span class="card-title">การลาล่าสุด</span><a href="leave.html" class="btn btn-ghost btn-sm">ดูทั้งหมด →</a></div>
+    <div class="card-body" style="padding:16px">
+      ${leaves.length === 0 ? '<div style="text-align:center;padding:24px;font-size:13px;color:var(--text-muted)">ยังไม่มีประวัติการลา</div>' :
+      leaves.slice(0,4).map(l=>{
+        const t = typeMap[l.leaveTypeId]||{};
+        return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
+          <div style="width:8px;height:8px;border-radius:50%;background:${t.color||'#ccc'};flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500">${t.name||'—'} · ${l.days} วัน</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">${formatDateShort(l.startDate)}</div>
+          </div>
+          ${leaveStatusBadge(l.status)}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderChart() {
+  const today = DB.today();
+  const days  = Array.from({length:7},(_,i)=>DB.addDays(today, i-6));
+  const labels = days.map(d=>new Date(d).toLocaleDateString('th-TH',{weekday:'short'}));
+  const users  = DB.Users.getByCompany(user.companyId).filter(u=>u.role!=='admin');
+  const total  = users.length;
+
+  const present = days.map(d=>DB.Attendance.getByCompany(user.companyId,{date:d}).length);
+  const late    = days.map(d=>DB.Attendance.getByCompany(user.companyId,{date:d}).filter(a=>a.status==='late').length);
+
+  const ctx = document.getElementById('attChart');
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'เข้างาน', data: present, backgroundColor: '#4F46E5', borderRadius: 5, borderSkipped: false },
+        { label: 'สาย',    data: late,    backgroundColor: '#F59E0B', borderRadius: 5, borderSkipped: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        y: { beginAtZero: true, max: Math.max(total, 5), grid: { color: '#F3F4F6' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// Live clock
+setInterval(() => {
+  const el = document.getElementById('live-clock');
+  if (el) el.textContent = new Date().toTimeString().slice(0,5);
+}, 1000);
+</script>
+</body>
+</html>

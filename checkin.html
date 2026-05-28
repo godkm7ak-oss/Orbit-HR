@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เช็คอิน — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: Manual note -->
+<div class="modal-overlay" id="modal-note">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="note-title">เพิ่มหมายเหตุ</span>
+      <button class="modal-close" onclick="Modal.close('modal-note')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">กะงาน</label>
+        <select id="note-shift" class="form-select"><option value="">ไม่ระบุกะ</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea id="note-text" class="form-control" rows="3" placeholder="ระบุหมายเหตุ (ถ้ามี)"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-note')">ยกเลิก</button>
+      <button class="btn btn-primary" id="note-confirm-btn">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('checkin', 'เช็คอิน / เช็คเอาท์');
+let currentLat = null, currentLng = null, watchId = null;
+let pendingAction = null; // 'in' or 'out'
+let currentRecord = null;
+
+if (user) render();
+
+function render() {
+  const company  = Auth.currentCompany();
+  const today    = DB.today();
+  const rec      = DB.Attendance.getTodayByUser(user.id);
+  currentRecord  = rec;
+  const shifts   = DB.Shifts.getByCompany(user.companyId);
+  const history  = DB.Attendance.getByUser(user.id).slice(0, 30);
+
+  const now = new Date();
+  const timeStr = now.toTimeString().slice(0,5);
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <!-- Check-in card -->
+    <div class="checkin-card" style="margin-bottom:20px">
+      <div class="checkin-time" id="live-time">${timeStr}</div>
+      <div class="checkin-date">${formatDate(today)}</div>
+
+      ${rec ? `
+        <div class="checkin-status">
+          ${rec.checkOut
+            ? `✓ เช็คเอาท์แล้ว ${rec.checkOut} น. · ทำงาน ${calcDuration(rec.checkIn, rec.checkOut)}`
+            : `เช็คอินแล้ว ${rec.checkIn} น. ${rec.lateMinutes > 0 ? `<br>⚠ สาย ${rec.lateMinutes} นาที` : '· ✓ ตรงเวลา'}`}
+        </div>
+        ${!rec.checkOut ? `
+        <div class="checkin-btn-wrap">
+          <button class="checkin-action-btn out" onclick="startCheckout()">📍 เช็คเอาท์</button>
+        </div>` : `
+        <div style="margin-top:16px;opacity:.7;font-size:13px">วันนี้เสร็จสิ้นแล้ว · มาพบกันพรุ่งนี้!</div>`}
+      ` : `
+        <div class="checkin-status">กดปุ่มด้านล่างเพื่อเช็คอิน<br><span id="gps-status" style="font-size:12px;opacity:.7">กำลังระบุตำแหน่ง...</span></div>
+        <div class="checkin-btn-wrap">
+          <button class="checkin-action-btn in" id="btn-checkin" onclick="startCheckin()" disabled>📍 เช็คอิน</button>
+        </div>
+      `}
+    </div>
+
+    <!-- GPS Status -->
+    <div class="card" style="margin-bottom:20px" id="gps-card">
+      <div class="card-body" style="display:flex;align-items:center;gap:14px;padding:16px 20px">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">${iconSVG('map-pin','20')}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px" id="location-name">กำลังระบุตำแหน่ง...</div>
+          <div style="font-size:12px;color:var(--text-muted)" id="location-detail">เปิดใช้งาน GPS บนมือถือ</div>
+        </div>
+        <div id="location-status"></div>
+      </div>
+    </div>
+
+    <!-- Today summary row -->
+    <div class="grid grid-3" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5">${iconSVG('clock','18')}</div>
+        <div class="stat-value">${rec?.checkIn||'—'}</div>
+        <div class="stat-label">เวลาเข้างานวันนี้</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#ECFDF5;color:#10B981">${iconSVG('clock','18')}</div>
+        <div class="stat-value">${rec?.checkOut||'—'}</div>
+        <div class="stat-label">เวลาออกงานวันนี้</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:${rec?.lateMinutes>0?'var(--warning-light)':'#ECFDF5'};color:${rec?.lateMinutes>0?'var(--warning)':'#10B981'}">${iconSVG('trending-up','18')}</div>
+        <div class="stat-value" style="font-size:${rec?.lateMinutes>0?20:26}px">${rec ? (rec.lateMinutes>0?`+${rec.lateMinutes} นาที`:'ตรงเวลา') : '—'}</div>
+        <div class="stat-label">สถานะการเข้างาน</div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">ประวัติการเข้างาน</span>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">${iconSVG('download','14')} Export CSV</button>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+        <table>
+          <thead><tr>
+            <th>วันที่</th>
+            <th>กะงาน</th>
+            <th>เข้างาน</th>
+            <th>ออกงาน</th>
+            <th>ชั่วโมงทำงาน</th>
+            <th>สถานะ</th>
+            <th>สาย</th>
+            <th>OT</th>
+          </tr></thead>
+          <tbody>
+            ${history.length===0 ? '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">ยังไม่มีประวัติ</td></tr>' :
+            history.map(r=>{
+              const shift = shifts.find(s=>s.id===r.shiftId);
+              return `<tr>
+                <td>
+                  <div style="font-weight:500">${formatDateShort(r.date)}</div>
+                  <div style="font-size:11px;color:var(--text-muted)">${getDaysThai(r.date)}</div>
+                </td>
+                <td>${shift?`<span class="shift-pill" style="background:${shift.color}22;color:${shift.color}"><span class="shift-dot" style="background:${shift.color}"></span>${shift.name}</span>`:'-'}</td>
+                <td style="font-weight:500">${r.checkIn||'—'}</td>
+                <td style="font-weight:500">${r.checkOut||'<span style="color:var(--warning)">—</span>'}</td>
+                <td>${r.checkIn&&r.checkOut?calcDuration(r.checkIn,r.checkOut):'—'}</td>
+                <td>${attendanceStatusBadge(r.status)}</td>
+                <td style="color:${r.lateMinutes>0?'var(--warning)':'var(--text-muted)'}">${r.lateMinutes>0?`+${r.lateMinutes} น.`:'—'}</td>
+                <td style="color:${r.overtimeMinutes>0?'var(--info)':'var(--text-muted)'}">${r.overtimeMinutes>0?`+${r.overtimeMinutes} น.`:'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Start GPS watch
+  startGPS();
+
+  // Live clock
+  setInterval(() => {
+    const el = document.getElementById('live-time');
+    if (el) el.textContent = new Date().toTimeString().slice(0,5);
+  }, 1000);
+
+  // Pre-fill shifts in modal
+  const shiftSel = document.getElementById('note-shift');
+  if (shiftSel) {
+    shiftSel.innerHTML = '<option value="">ไม่ระบุกะ</option>' + shifts.map(s=>`<option value="${s.id}">${s.name} (${s.startTime}-${s.endTime})</option>`).join('');
+    // Auto-select closest shift
+    autoSelectShift(shifts, shiftSel);
+  }
+}
+
+function autoSelectShift(shifts, sel) {
+  if (!shifts.length) return;
+  const now = new Date();
+  const mins = now.getHours()*60 + now.getMinutes();
+  let best = null, bestDiff = Infinity;
+  shifts.forEach(s => {
+    const [h,m] = s.startTime.split(':').map(Number);
+    const start = h*60+m;
+    const diff = Math.abs(mins - start);
+    if (diff < bestDiff) { bestDiff = diff; best = s; }
+  });
+  if (best) sel.value = best.id;
+}
+
+function startGPS() {
+  if (!navigator.geolocation) {
+    updateGPSUI(false, 'เบราว์เซอร์ไม่รองรับ GPS', '');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    currentLat = pos.coords.latitude;
+    currentLng = pos.coords.longitude;
+    checkLocation(currentLat, currentLng);
+  }, err => {
+    updateGPSUI(false, 'ไม่สามารถระบุตำแหน่งได้', `Error: ${err.message}`);
+    document.getElementById('btn-checkin')?.removeAttribute('disabled');
+  }, { enableHighAccuracy: true, timeout: 15000 });
+}
+
+function checkLocation(lat, lng) {
+  const company = Auth.currentCompany();
+  const locations = company?.locations || [];
+  const radius = company?.checkInRadius || 200;
+
+  let nearest = null, nearestDist = Infinity;
+  if (locations.length > 0) {
+    locations.forEach(loc => {
+      const dist = DB.haversine(lat, lng, loc.lat, loc.lng);
+      if (dist < nearestDist) { nearestDist = dist; nearest = loc; }
+    });
+    const inRange = nearestDist <= nearest.radius || nearestDist <= radius;
+    updateGPSUI(inRange,
+      inRange ? `อยู่ใน: ${nearest.name}` : `นอกรัศมี: ${nearest.name}`,
+      inRange ? `ห่าง ${Math.round(nearestDist)} เมตร` : `ห่าง ${Math.round(nearestDist)} เมตร (รัศมี ${nearest.radius||radius} เมตร)`
+    );
+    const btn = document.getElementById('btn-checkin');
+    if (btn) { if (inRange) btn.removeAttribute('disabled'); else btn.setAttribute('disabled',''); }
+  } else {
+    // No locations set — allow from anywhere
+    updateGPSUI(true, `พบตำแหน่ง: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'ยังไม่ได้ตั้งค่าสถานที่ทำงาน');
+    document.getElementById('btn-checkin')?.removeAttribute('disabled');
+  }
+}
+
+function updateGPSUI(ok, name, detail) {
+  const nameEl   = document.getElementById('location-name');
+  const detailEl = document.getElementById('location-detail');
+  const statusEl = document.getElementById('location-status');
+  const gpsEl    = document.getElementById('gps-status');
+  if (nameEl)   nameEl.textContent   = name;
+  if (detailEl) detailEl.textContent = detail;
+  if (statusEl) statusEl.innerHTML   = ok ? `<span class="badge badge-success">${iconSVG('check','12')} อยู่ในรัศมี</span>` : `<span class="badge badge-danger">${iconSVG('x','12')} นอกรัศมี</span>`;
+  if (gpsEl)    gpsEl.textContent    = ok ? 'ตำแหน่งตรวจสอบแล้ว' : 'ไม่อยู่ในพื้นที่ทำงาน';
+}
+
+function startCheckin() {
+  pendingAction = 'in';
+  document.getElementById('note-title').textContent = 'เช็คอิน';
+  document.getElementById('note-confirm-btn').textContent = '✓ เช็คอินเลย';
+  document.getElementById('note-confirm-btn').onclick = confirmCheckin;
+  Modal.open('modal-note');
+}
+
+function startCheckout() {
+  pendingAction = 'out';
+  document.getElementById('note-title').textContent = 'เช็คเอาท์';
+  document.getElementById('note-confirm-btn').textContent = '✓ เช็คเอาท์เลย';
+  document.getElementById('note-confirm-btn').onclick = confirmCheckout;
+  const shiftSel = document.getElementById('note-shift');
+  if (shiftSel && currentRecord?.shiftId) shiftSel.value = currentRecord.shiftId;
+  Modal.open('modal-note');
+}
+
+function confirmCheckin() {
+  const shiftId = document.getElementById('note-shift')?.value || null;
+  const note    = document.getElementById('note-text')?.value || '';
+  const company = Auth.currentCompany();
+  const result  = DB.Attendance.clockIn({
+    companyId: user.companyId, userId: user.id,
+    lat: currentLat, lng: currentLng, locationName: getLocationName(),
+    shiftId, method: currentLat ? 'gps' : 'manual', note
+  });
+  if (result.error) { Toast.error('เช็คอินแล้วในวันนี้'); Modal.close('modal-note'); return; }
+  DB.Notifications.notifyCheckIn(user.id, result.record.status, result.record.lateMinutes);
+  Modal.close('modal-note');
+  Toast.success(`เช็คอินสำเร็จ ${result.record.checkIn} น.`);
+  render();
+}
+
+function confirmCheckout() {
+  if (!currentRecord) { Toast.error('ยังไม่ได้เช็คอินวันนี้'); Modal.close('modal-note'); return; }
+  const note = document.getElementById('note-text')?.value || '';
+  DB.Attendance.clockOut(currentRecord.id, { lat: currentLat, lng: currentLng, note });
+  Modal.close('modal-note');
+  Toast.success(`เช็คเอาท์สำเร็จ ${new Date().toTimeString().slice(0,5)} น.`);
+  render();
+}
+
+function getLocationName() {
+  const company = Auth.currentCompany();
+  const locs = company?.locations || [];
+  if (!locs.length || !currentLat) return '';
+  let best = null, bestDist = Infinity;
+  locs.forEach(l => { const d = DB.haversine(currentLat,currentLng,l.lat,l.lng); if(d<bestDist){bestDist=d;best=l;} });
+  return best?.name || '';
+}
+
+function calcDuration(in_t, out_t) {
+  if (!in_t || !out_t) return '—';
+  const [ih,im] = in_t.split(':').map(Number);
+  const [oh,om] = out_t.split(':').map(Number);
+  let mins = (oh*60+om) - (ih*60+im);
+  if (mins < 0) mins += 24*60;
+  const h = Math.floor(mins/60), m = mins%60;
+  return `${h} ชม. ${m} นาที`;
+}
+
+function exportCSV() {
+  const csv = DB.Attendance.exportCSV(user.companyId, { userId: user.id });
+  downloadCSV(csv, `attendance_${user.name}_${DB.today()}.csv`);
+  Toast.success('Export สำเร็จ');
+}
+</script>
+</body>
+</html>

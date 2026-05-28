@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตารางงาน — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: Assign shift -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="assign-title">กำหนดกะงาน</span>
+      <button class="modal-close" onclick="Modal.close('modal-assign')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px" id="assign-info"></div>
+      <div class="form-group">
+        <label class="form-label">เลือกกะงาน</label>
+        <select id="assign-shift" class="form-select">
+          <option value="">วันหยุด / ไม่มีกะ</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-assign')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAssignment()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('schedule', 'ตารางงาน');
+const isManager = Auth.canApproveLeave(user);
+
+let viewMode = 'week'; // 'week' or 'my'
+let weekOffset = 0;
+let assignTarget = null; // { userId, date }
+
+if (user) render();
+
+function getWeekStart(offset = 0) {
+  const monday = DB.getMonday(DB.today());
+  return DB.addDays(monday, offset * 7);
+}
+
+function render() {
+  const weekStart = getWeekStart(weekOffset);
+  const weekEnd   = DB.addDays(weekStart, 6);
+  const weekLabel = `${formatDateShort(weekStart)} — ${formatDateShort(weekEnd)}`;
+  const shifts    = DB.Shifts.getByCompany(user.companyId);
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <!-- Nav bar -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-body" style="padding:14px 20px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="calendar-nav" style="margin:0;flex:1">
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="changeWeek(-1)">${iconSVG('chevron-left','16')}</button>
+            <span class="month-title" style="font-size:14px">${weekLabel}</span>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="changeWeek(1)">${iconSVG('chevron-right','16')}</button>
+            <button class="btn btn-ghost btn-sm" onclick="weekOffset=0;render()">วันนี้</button>
+          </div>
+          ${isManager ? `
+          <div class="btn-group">
+            <button class="btn ${viewMode==='team'?'btn-primary':'btn-secondary'} btn-sm" onclick="viewMode='team';render()">ทีม</button>
+            <button class="btn ${viewMode==='my'?'btn-primary':'btn-secondary'} btn-sm" onclick="viewMode='my';render()">ของฉัน</button>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Shift legend -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      ${shifts.map(s=>`<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;background:${s.color}22;color:${s.color};font-size:12px;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:${s.color}"></span>${s.name} ${s.startTime}-${s.endTime}</span>`).join('')}
+      ${shifts.length===0?`<span style="font-size:13px;color:var(--text-muted)">ยังไม่มีกะงาน — ตั้งค่าได้ที่ <a href="settings.html">การตั้งค่า</a></span>`:''}
+    </div>
+
+    <!-- Schedule grid -->
+    ${isManager && viewMode==='team' ? renderTeamGrid(weekStart, shifts) : renderMySchedule(weekStart, shifts)}
+  `;
+}
+
+function renderTeamGrid(weekStart, shifts) {
+  const employees = DB.Users.getByCompany(user.companyId).filter(u=>u.status==='active');
+  const days      = getWeekDays(weekStart);
+  const today     = DB.today();
+  const dayNames  = ['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
+  const shiftMap  = Object.fromEntries(shifts.map(s=>[s.id,s]));
+
+  // Load all schedules for this week
+  const schedules = DB.Schedules.getWeek(user.companyId, weekStart);
+  const schedMap  = {};
+  schedules.forEach(s => {
+    if (!schedMap[s.userId]) schedMap[s.userId] = {};
+    schedMap[s.userId][s.date] = s.shiftId;
+  });
+
+  return `
+  <div class="card">
+    <div class="schedule-grid">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th style="min-width:140px;text-align:left;padding-left:16px">พนักงาน</th>
+            ${days.map((d,i)=>`<th class="${d===today?'today-col':''}">${dayNames[i]}<br><span style="font-weight:400;font-size:11px">${new Date(d).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span></th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${employees.map(emp=>`
+            <tr>
+              <td style="padding:8px 16px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${renderAvatar(emp,'sm')}
+                  <div>
+                    <div style="font-size:13px;font-weight:500;white-space:nowrap">${emp.name.split(' ')[0]||emp.name}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${emp.department||''}</div>
+                  </div>
+                </div>
+              </td>
+              ${days.map(d=>{
+                const shiftId = schedMap[emp.id]?.[d];
+                const shift   = shiftId ? shiftMap[shiftId] : null;
+                const isToday = d === today;
+                return `<td class="${isToday?'today-col':''}" onclick="${isManager?`openAssign('${emp.id}','${d}')`:''}" title="${isManager?'คลิกเพื่อกำหนดกะ':''}">
+                  ${shift
+                    ? `<div class="shift-pill" style="background:${shift.color}22;color:${shift.color}"><span class="shift-dot" style="background:${shift.color}"></span>${shift.name}</div>`
+                    : `<div style="text-align:center;color:var(--border);font-size:18px">·</div>`}
+                </td>`;
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderMySchedule(weekStart, shifts) {
+  const days     = getWeekDays(weekStart);
+  const today    = DB.today();
+  const dayNames = ['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
+  const myScheds = DB.Schedules.getUserWeek(user.id, weekStart);
+  const shiftMap = Object.fromEntries(shifts.map(s=>[s.id,s]));
+  const schedMap = Object.fromEntries(myScheds.map(s=>[s.date,s.shiftId]));
+
+  return `
+  <div class="grid" style="grid-template-columns:repeat(7,1fr);gap:10px">
+    ${days.map((d,i)=>{
+      const shiftId = schedMap[d];
+      const shift   = shiftId ? shiftMap[shiftId] : null;
+      const isToday = d === today;
+      return `
+      <div class="card" style="${isToday?'border-color:var(--primary);':''}">
+        <div style="padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${isToday?'var(--primary)':'var(--text-muted)'}">${dayNames[i]}</div>
+          <div style="font-size:22px;font-weight:700;margin:4px 0;color:${isToday?'var(--primary)':'var(--text-primary)'}">${new Date(d).getDate()}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${new Date(d).toLocaleDateString('th-TH',{month:'short'})}</div>
+          <div style="margin-top:12px;min-height:48px;display:flex;align-items:center;justify-content:center">
+            ${shift
+              ? `<div style="padding:6px 10px;border-radius:8px;background:${shift.color}22;color:${shift.color};text-align:center">
+                  <div style="font-size:12px;font-weight:700">${shift.name}</div>
+                  <div style="font-size:10px;margin-top:1px">${shift.startTime}-${shift.endTime}</div>
+                </div>`
+              : `<div style="font-size:12px;color:var(--text-muted)">หยุด</div>`}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- Monthly overview -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><span class="card-title">ภาพรวมเดือนนี้</span></div>
+    <div class="card-body">
+      ${renderMonthlyOverview(shifts)}
+    </div>
+  </div>`;
+}
+
+function renderMonthlyOverview(shifts) {
+  const now   = new Date();
+  const year  = now.getFullYear();
+  const month = now.getMonth();
+  const monthStr = `${year}-${String(month+1).padStart(2,'0')}`;
+  const myScheds = DB.Schedules.getForUser(user.id, monthStr);
+  const shiftMap = Object.fromEntries(shifts.map(s=>[s.id,s]));
+
+  // Count by shift
+  const counts = {};
+  shifts.forEach(s => counts[s.id] = 0);
+  myScheds.forEach(s => { if(counts[s.shiftId]!==undefined) counts[s.shiftId]++; });
+
+  const totalDays = myScheds.length;
+  return `
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+    <div style="font-size:14px;color:var(--text-secondary)">กะทั้งหมดเดือนนี้: <strong style="color:var(--primary)">${totalDays} วัน</strong></div>
+    ${shifts.map(s=>`<div style="display:flex;align-items:center;gap:6px">
+      <span style="width:10px;height:10px;border-radius:50%;background:${s.color}"></span>
+      <span style="font-size:13px">${s.name}: <strong>${counts[s.id]||0}</strong> วัน</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function changeWeek(dir) { weekOffset += dir; render(); }
+
+function openAssign(empId, date) {
+  if (!isManager) return;
+  assignTarget = { userId: empId, date };
+  const emp    = DB.Users.get(empId);
+  const shifts = DB.Shifts.getByCompany(user.companyId);
+  const existing = DB.Schedules.getUserWeek(empId, DB.getMonday(date)).find(s=>s.date===date);
+
+  document.getElementById('assign-title').textContent = 'กำหนดกะงาน';
+  document.getElementById('assign-info').textContent  = `${emp?.name||'?'} · ${formatDate(date)}`;
+
+  const sel = document.getElementById('assign-shift');
+  sel.innerHTML = '<option value="">วันหยุด / ไม่มีกะ</option>' + shifts.map(s=>`<option value="${s.id}">${s.name} (${s.startTime}-${s.endTime})</option>`).join('');
+  if (existing) sel.value = existing.shiftId;
+
+  Modal.open('modal-assign');
+}
+
+function saveAssignment() {
+  if (!assignTarget) return;
+  const shiftId = document.getElementById('assign-shift').value || null;
+  DB.Schedules.set(assignTarget.userId, user.companyId, assignTarget.date, shiftId);
+  Modal.close('modal-assign');
+  Toast.success('บันทึกตารางงานแล้ว');
+
+  // Notify employee
+  const emp = DB.Users.get(assignTarget.userId);
+  if (emp && shiftId) {
+    const shift = DB.Shifts.getByCompany(user.companyId).find(s=>s.id===shiftId);
+    DB.Notifications.create({ userId: emp.id, type: 'schedule', title: 'ตารางงานได้รับการอัปเดต', body: `${formatDate(assignTarget.date)} — กะ${shift?.name||''}`, color: '#F59E0B', link: 'schedule.html', icon: 'clock' });
+  }
+  render();
+}
+</script>
+</body>
+</html>

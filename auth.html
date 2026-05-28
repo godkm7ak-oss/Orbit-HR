@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เข้าสู่ระบบ — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #4F46E5; --primary-dark: #3730A3; --accent: #10B981;
+  --danger: #EF4444; --border: #E5E7EB; --muted: #6B7280;
+  --font: 'Inter','Noto Sans Thai',sans-serif;
+}
+body { font-family: var(--font); background: #F5F6FA; min-height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+
+/* Layout */
+.auth-layout { display: flex; min-height: 100vh; }
+.auth-side {
+  width: 420px; background: linear-gradient(160deg, #0F0E1A 0%, #1C1A2E 100%);
+  display: flex; flex-direction: column; padding: 40px;
+  position: relative; overflow: hidden;
+}
+.auth-side::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at top right, rgba(79,70,229,.3) 0%, transparent 60%);
+}
+.auth-main {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 40px 24px;
+}
+
+/* Side panel */
+.side-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 48px; position: relative; z-index: 1; }
+.side-logo-icon { width: 38px; height: 38px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 18px; }
+.side-logo-text { color: #fff; font-size: 18px; font-weight: 700; }
+
+.side-features { position: relative; z-index: 1; flex: 1; }
+.side-features h2 { color: #fff; font-size: 24px; font-weight: 700; line-height: 1.3; margin-bottom: 28px; }
+.side-feat { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.side-feat-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.side-feat-text h4 { color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+.side-feat-text p { color: #8B83CC; font-size: 12.5px; line-height: 1.5; }
+
+/* Auth card */
+.auth-card {
+  width: 100%; max-width: 440px;
+  background: #fff; border-radius: 20px;
+  box-shadow: 0 4px 32px rgba(0,0,0,.1);
+  overflow: hidden;
+}
+.auth-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.auth-tab {
+  flex: 1; padding: 18px 12px; text-align: center;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  color: var(--muted); border: none; background: none;
+  font-family: var(--font); transition: all .15s;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.auth-body { padding: 28px; }
+.auth-body h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.auth-body p { font-size: 13.5px; color: var(--muted); margin-bottom: 24px; }
+
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+.form-label .req { color: var(--danger); }
+.form-control {
+  width: 100%; padding: 10px 13px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 14px; font-family: var(--font);
+  outline: none; transition: all .15s; background: #fff; color: #111827;
+}
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+.form-control::placeholder { color: #9CA3AF; }
+.form-control.error { border-color: var(--danger); }
+.form-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.form-error { font-size: 12px; color: var(--danger); margin-top: 4px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.submit-btn {
+  width: 100%; padding: 12px; background: var(--primary); color: #fff;
+  border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+  cursor: pointer; font-family: var(--font); transition: all .15s; margin-top: 4px;
+}
+.submit-btn:hover { background: var(--primary-dark); }
+.submit-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Sub-tabs inside login */
+.login-subtabs { display: flex; gap: 0; margin-bottom: 22px; background: #F3F4F6; border-radius: 9px; padding: 3px; }
+.login-subtab {
+  flex: 1; padding: 8px 10px; text-align: center; font-size: 13px; font-weight: 500;
+  border-radius: 7px; cursor: pointer; border: none; background: none;
+  font-family: var(--font); color: var(--muted); transition: all .15s;
+}
+.login-subtab.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
+/* Company code chip */
+.code-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #EEF2FF; color: var(--primary); border: 1px solid #C7D2FE;
+  padding: 6px 14px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+}
+.code-chip:hover { background: #E0E7FF; }
+
+/* Step indicators */
+.steps-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; border: 2px solid var(--border); color: var(--muted);
+}
+.step-dot.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.step-dot.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+.step-line { flex: 1; height: 2px; background: var(--border); border-radius: 1px; }
+.step-line.done { background: var(--accent); }
+
+.divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.divider span { font-size: 12px; color: var(--muted); }
+
+.demo-btn {
+  width: 100%; padding: 11px; border: 2px dashed #C7D2FE; border-radius: 8px;
+  background: #F8F9FF; color: var(--primary); font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: var(--font); transition: all .15s;
+}
+.demo-btn:hover { background: #EEF2FF; border-color: var(--primary); }
+
+/* Error alert */
+.alert-error {
+  background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B;
+  padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+  display: none;
+}
+.alert-error.show { display: block; }
+
+@media (max-width: 900px) { .auth-side { display: none; } }
+@media (max-width: 480px) {
+  .auth-main { padding: 20px 16px; align-items: flex-start; padding-top: 40px; }
+  .auth-card { border-radius: 16px; }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="auth-layout">
+  <!-- Side panel -->
+  <div class="auth-side">
+    <div class="side-logo">
+      <div class="side-logo-icon">O</div>
+      <span class="side-logo-text">Orbit HR</span>
+    </div>
+    <div class="side-features">
+      <h2>ระบบจัดการพนักงานที่ทีมคุณจะรัก</h2>
+      <div class="side-feat">
+        <div class="side-feat-icon" style="background:rgba(79,70,229,.2)">📋</div>
+        <div class="side-feat-text">
+          <h4>ลางานออนไลน์</h4>
+          <p>ยื่น-อนุมัติ-ปฏิเสธ ไม่ต้องใช้กระดาษอีกต่อไป</p>
+        </div>
+      </div>
+      <div class="side-feat">
+        <div class="side-feat-icon" style="background:rgba(16,185,129,.2)">📍</div>
+        <div class="side-feat-text">
+          <h4>เช็คอิน GPS</h4>
+          <p>ตรวจสอบตำแหน่งจริง ป้องกันการโกงเวลา</p>
+        </div>
+      </div>
+      <div class="side-feat">
+        <div class="side-feat-icon" style="background:rgba(245,158,11,.2)">📅</div>
+        <div class="side-feat-text">
+          <h4>ตารางกะอัจฉริยะ</h4>
+          <p>จัดกะทั้งทีมในไม่กี่คลิก พนักงานเห็นได้จากมือถือ</p>
+        </div>
+      </div>
+      <div class="side-feat">
+        <div class="side-feat-icon" style="background:rgba(14,165,233,.2)">🔔</div>
+        <div class="side-feat-text">
+          <h4>แจ้งเตือนอัตโนมัติ</h4>
+          <p>ประชุม ประกาศ การลา — ไม่มีอะไรตกหล่น</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main auth -->
+  <div class="auth-main">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">สมัครใช้งาน</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="panel-login" class="auth-body">
+        <h2>ยินดีต้อนรับกลับ</h2>
+        <p>เลือกประเภทการเข้าสู่ระบบ</p>
+
+        <div class="login-subtabs">
+          <button class="login-subtab active" id="subtab-emp" onclick="switchSubtab('emp')">พนักงาน</button>
+          <button class="login-subtab" id="subtab-admin" onclick="switchSubtab('admin')">Admin / HR</button>
+        </div>
+
+        <div id="alert-login" class="alert-error"></div>
+
+        <!-- Employee login -->
+        <div id="form-emp">
+          <div class="form-group">
+            <label class="form-label">รหัสบริษัท <span class="req">*</span></label>
+            <input type="text" id="emp-company-code" class="form-control" placeholder="เช่น ABC123" maxlength="6" style="text-transform:uppercase;letter-spacing:2px;font-weight:600">
+            <div class="form-hint">ขอรหัสจาก Admin ของบริษัทคุณ</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">รหัสพนักงาน <span class="req">*</span></label>
+            <input type="text" id="emp-code" class="form-control" placeholder="เช่น EMP001" maxlength="10" style="text-transform:uppercase;letter-spacing:1px;font-weight:600">
+            <div class="form-hint">รหัสพนักงานของคุณ ขอจาก Admin</div>
+          </div>
+          <button class="submit-btn" onclick="loginEmployee()">เข้าสู่ระบบ</button>
+        </div>
+
+        <!-- Admin login -->
+        <div id="form-admin" style="display:none">
+          <div class="form-group">
+            <label class="form-label">อีเมล <span class="req">*</span></label>
+            <input type="email" id="admin-email" class="form-control" placeholder="admin@company.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">รหัสผ่าน <span class="req">*</span></label>
+            <input type="password" id="admin-password" class="form-control" placeholder="••••••••">
+          </div>
+          <button class="submit-btn" onclick="loginAdmin()">เข้าสู่ระบบ</button>
+        </div>
+
+        <div class="divider"><span>หรือ</span></div>
+        <button class="demo-btn" onclick="loadDemo()">🚀 ทดลองดูด้วย Demo Data</button>
+      </div>
+
+      <!-- REGISTER -->
+      <div id="panel-register" class="auth-body" style="display:none">
+        <div class="steps-bar" id="steps-bar">
+          <div class="step-dot active" id="step1-dot">1</div>
+          <div class="step-line" id="line1"></div>
+          <div class="step-dot" id="step2-dot">2</div>
+          <div class="step-line" id="line2"></div>
+          <div class="step-dot" id="step3-dot">3</div>
+        </div>
+
+        <div id="alert-reg" class="alert-error"></div>
+
+        <!-- Step 1: Company info -->
+        <div id="reg-step1">
+          <h2>สร้างบัญชีองค์กร</h2>
+          <p>ข้อมูลบริษัทของคุณ — ตั้งค่าได้ภายหลัง</p>
+          <div class="form-group">
+            <label class="form-label">ชื่อบริษัท / องค์กร <span class="req">*</span></label>
+            <input type="text" id="reg-company-name" class="form-control" placeholder="เช่น โรงแรมสยาม กรุงเทพ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ประเภทธุรกิจ</label>
+            <select id="reg-industry" class="form-control">
+              <option value="">เลือกประเภท</option>
+              <option>โรงแรม / บริการ</option>
+              <option>ร้านอาหาร / Cafe</option>
+              <option>ร้านค้า / Retail</option>
+              <option>คลินิก / โรงพยาบาล</option>
+              <option>โรงงาน / ผลิต</option>
+              <option>บริษัท IT / Software</option>
+              <option>การก่อสร้าง</option>
+              <option>อื่นๆ</option>
+            </select>
+          </div>
+          <button class="submit-btn" onclick="nextStep(1)">ถัดไป →</button>
+        </div>
+
+        <!-- Step 2: Admin account -->
+        <div id="reg-step2" style="display:none">
+          <h2>บัญชี Admin</h2>
+          <p>สร้างบัญชีผู้ดูแลระบบหลัก</p>
+          <div class="form-group">
+            <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
+            <input type="text" id="reg-name" class="form-control" placeholder="ชื่อผู้ดูแลระบบ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">อีเมล <span class="req">*</span></label>
+            <input type="email" id="reg-email" class="form-control" placeholder="admin@company.com">
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">รหัสผ่าน <span class="req">*</span></label>
+              <input type="password" id="reg-password" class="form-control" placeholder="อย่างน้อย 6 ตัว">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">ยืนยันรหัสผ่าน <span class="req">*</span></label>
+              <input type="password" id="reg-confirm" class="form-control" placeholder="กรอกซ้ำ">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button class="submit-btn" style="background:#F3F4F6;color:#374151" onclick="prevStep(2)">← ย้อนกลับ</button>
+            <button class="submit-btn" onclick="nextStep(2)">ถัดไป →</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Work settings -->
+        <div id="reg-step3" style="display:none">
+          <h2>ตั้งค่าเวลาทำงาน</h2>
+          <p>ปรับแก้ได้ภายหลังในการตั้งค่า</p>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">เวลาเข้างาน</label>
+              <input type="time" id="reg-work-start" class="form-control" value="08:00">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">เวลาออกงาน</label>
+              <input type="time" id="reg-work-end" class="form-control" value="17:00">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">รัศมีเช็คอิน GPS (เมตร)</label>
+            <input type="number" id="reg-radius" class="form-control" value="200" min="50" max="2000" placeholder="200">
+            <div class="form-hint">พนักงานต้องอยู่ในรัศมีนี้จึงเช็คอินได้</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <button class="submit-btn" style="background:#F3F4F6;color:#374151" onclick="prevStep(3)">← ย้อนกลับ</button>
+            <button class="submit-btn" onclick="register()">🎉 สร้างบัญชีเลย!</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script>
+// Check if should open register tab
+if (window.location.hash === '#register') switchTab('register');
+
+function switchTab(tab) {
+  document.getElementById('panel-login').style.display    = tab === 'login'    ? 'block' : 'none';
+  document.getElementById('panel-register').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('tab-login').classList.toggle('active',    tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+}
+
+function switchSubtab(sub) {
+  document.getElementById('form-emp').style.display   = sub === 'emp'   ? 'block' : 'none';
+  document.getElementById('form-admin').style.display = sub === 'admin' ? 'block' : 'none';
+  document.getElementById('subtab-emp').classList.toggle('active',   sub === 'emp');
+  document.getElementById('subtab-admin').classList.toggle('active', sub === 'admin');
+  clearAlert('login');
+}
+
+function showAlert(context, msg) {
+  const el = document.getElementById(`alert-${context}`);
+  el.textContent = msg; el.classList.add('show');
+}
+function clearAlert(context) {
+  const el = document.getElementById(`alert-${context}`);
+  if (el) { el.textContent = ''; el.classList.remove('show'); }
+}
+
+function loginEmployee() {
+  clearAlert('login');
+  const compCode = document.getElementById('emp-company-code').value.trim();
+  const empCode  = document.getElementById('emp-code').value.trim();
+  if (!compCode || !empCode) return showAlert('login', 'กรุณากรอกรหัสบริษัทและรหัสพนักงาน');
+  const result = Auth.loginEmployee(compCode, empCode);
+  if (result.error) return showAlert('login', result.error);
+  window.location.href = 'dashboard.html';
+}
+
+function loginAdmin() {
+  clearAlert('login');
+  const email    = document.getElementById('admin-email').value.trim();
+  const password = document.getElementById('admin-password').value;
+  if (!email || !password) return showAlert('login', 'กรุณากรอกอีเมลและรหัสผ่าน');
+  const result = Auth.loginAdmin(email, password);
+  if (result.error) return showAlert('login', result.error);
+  window.location.href = 'dashboard.html';
+}
+
+function loadDemo() {
+  DB.seedDemo();
+  window.location.href = 'dashboard.html';
+}
+
+// Registration steps
+let currentStep = 1;
+function nextStep(from) {
+  clearAlert('reg');
+  if (from === 1) {
+    const name = document.getElementById('reg-company-name').value.trim();
+    if (!name) return showAlert('reg', 'กรุณาใส่ชื่อบริษัท');
+    currentStep = 2;
+  } else if (from === 2) {
+    const name  = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pass  = document.getElementById('reg-password').value;
+    const conf  = document.getElementById('reg-confirm').value;
+    if (!name || !email || !pass) return showAlert('reg', 'กรุณากรอกข้อมูลให้ครบ');
+    if (pass.length < 6) return showAlert('reg', 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+    if (pass !== conf)   return showAlert('reg', 'รหัสผ่านไม่ตรงกัน');
+    currentStep = 3;
+  }
+  updateSteps();
+}
+function prevStep(from) {
+  currentStep = from - 1;
+  updateSteps();
+}
+function updateSteps() {
+  [1,2,3].forEach(s => {
+    document.getElementById(`reg-step${s}`).style.display = s === currentStep ? 'block' : 'none';
+    const dot = document.getElementById(`step${s}-dot`);
+    dot.classList.toggle('active', s === currentStep);
+    dot.classList.toggle('done',   s < currentStep);
+    dot.textContent = s < currentStep ? '✓' : s;
+  });
+  [1,2].forEach(i => {
+    document.getElementById(`line${i}`)?.classList.toggle('done', i < currentStep);
+  });
+}
+
+function register() {
+  clearAlert('reg');
+  const result = Auth.register(
+    { name: document.getElementById('reg-company-name').value.trim(), industry: document.getElementById('reg-industry').value, workStart: document.getElementById('reg-work-start').value, workEnd: document.getElementById('reg-work-end').value, checkInRadius: parseInt(document.getElementById('reg-radius').value) || 200 },
+    { name: document.getElementById('reg-name').value.trim(), email: document.getElementById('reg-email').value.trim(), password: document.getElementById('reg-password').value }
+  );
+  if (result.error) return showAlert('reg', result.error);
+  window.location.href = 'dashboard.html';
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const loginVisible = document.getElementById('panel-login').style.display !== 'none';
+  if (loginVisible) {
+    const empVisible = document.getElementById('form-emp').style.display !== 'none';
+    empVisible ? loginEmployee() : loginAdmin();
+  }
+});
+
+Auth.requireGuest();
+</script>
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>การลา — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: Request Leave -->
+<div class="modal-overlay" id="modal-request">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">ยื่นคำขอลางาน</span>
+      <button class="modal-close" onclick="Modal.close('modal-request')">${'✕'}</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">ประเภทการลา <span class="required">*</span></label>
+        <select id="leave-type" class="form-select"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่เริ่มลา <span class="required">*</span></label>
+          <input type="date" id="leave-start" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่สิ้นสุด <span class="required">*</span></label>
+          <input type="date" id="leave-end" class="form-control">
+        </div>
+      </div>
+      <div class="form-group" id="days-preview" style="display:none">
+        <div class="badge badge-info" id="days-count"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">เหตุผล <span class="required">*</span></label>
+        <textarea id="leave-reason" class="form-control" rows="3" placeholder="ระบุเหตุผลการลา..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">เอกสารประกอบ (ถ้ามี)</label>
+        <input type="text" id="leave-attachment" class="form-control" placeholder="ชื่อไฟล์ หรือ URL เอกสาร">
+        <div class="form-hint">เช่น ใบรับรองแพทย์ บัตรนัด</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-request')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitLeave()">ยื่นคำขอ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Approve/Reject -->
+<div class="modal-overlay" id="modal-approve">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="approve-modal-title">รายละเอียดคำขอลา</span>
+      <button class="modal-close" onclick="Modal.close('modal-approve')">✕</button>
+    </div>
+    <div class="modal-body" id="approve-modal-body"></div>
+    <div class="modal-footer" id="approve-modal-footer"></div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('leave', 'การลางาน', `<button class="btn btn-primary" onclick="openRequest()">${iconSVG('plus','15')} ขอลางาน</button>`);
+let currentTab = 'my';
+if (user) render();
+
+function render() {
+  const isManager = Auth.canApproveLeave(user);
+  const pending   = DB.Leaves.getByCompany(user.companyId, {status:'pending'}).length;
+  const main = document.getElementById('main');
+
+  main.innerHTML = `
+    <!-- Balance -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header"><span class="card-title">วันลาคงเหลือปีนี้</span></div>
+      <div class="card-body">
+        <div class="grid grid-4" id="balance-cards"></div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+      <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:12px">
+        <div class="tabs" style="margin-bottom:0;width:100%">
+          <button class="tab-item ${currentTab==='my'?'active':''}" onclick="switchTab('my')">ประวัติของฉัน</button>
+          ${isManager ? `<button class="tab-item ${currentTab==='pending'?'active':''}" onclick="switchTab('pending')">รอการอนุมัติ ${pending>0?`<span class="badge badge-danger" style="margin-left:4px">${pending}</span>`:''}</button>` : ''}
+          ${isManager ? `<button class="tab-item ${currentTab==='all'?'active':''}" onclick="switchTab('all')">คำขอทั้งหมด</button>` : ''}
+        </div>
+        <div class="filter-bar" style="width:100%">
+          <div class="search-input">
+            ${iconSVG('search','14')}
+            <input type="text" placeholder="ค้นหา..." id="search-input" oninput="renderTable()">
+          </div>
+          <select class="form-select" style="width:auto" id="filter-status" onchange="renderTable()">
+            <option value="">สถานะทั้งหมด</option>
+            <option value="pending">รอการอนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="rejected">ถูกปฏิเสธ</option>
+          </select>
+          <select class="form-select" style="width:auto" id="filter-month" onchange="renderTable()">
+            <option value="">ทุกเดือน</option>
+            ${getLast12Months().map(m=>`<option value="${m.value}" ${m.value===DB.today().slice(0,7)?'selected':''}>${m.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+        <table>
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  renderBalanceCards();
+  renderTable();
+  populateLeaveTypes();
+  setDefaultDates();
+}
+
+function renderBalanceCards() {
+  const balance = DB.Leaves.getBalance(user.id);
+  const el = document.getElementById('balance-cards');
+  if (!el) return;
+  const types = Object.values(balance);
+  if (!types.length) { el.innerHTML = '<div class="text-muted">ยังไม่มีประเภทการลา</div>'; return; }
+  el.innerHTML = types.map(({type, remaining, total, used}) => `
+    <div class="leave-balance-item">
+      <div class="leave-balance-header">
+        <span style="font-size:13px;font-weight:600"><span class="leave-type-dot" style="background:${type.color}"></span>${type.name}</span>
+        <span style="font-size:22px;font-weight:700;color:${remaining<=2?'var(--danger)':remaining<=5?'var(--warning)':'var(--primary)'}">${remaining}</span>
+      </div>
+      <div class="text-sm text-muted">ใช้ไป ${used} / ทั้งหมด ${total} วัน</div>
+      <div class="progress-bar" style="margin-top:6px">
+        <div class="progress-fill ${remaining<=2?'danger':remaining<=5?'warning':''}" style="width:${pct(used,total)}%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTable() {
+  const isManager = Auth.canApproveLeave(user);
+  const search = (document.getElementById('search-input')?.value||'').toLowerCase();
+  const status = document.getElementById('filter-status')?.value||'';
+  const month  = document.getElementById('filter-month')?.value||'';
+
+  let leaves;
+  if (currentTab === 'my') {
+    leaves = DB.Leaves.getByUser(user.id);
+  } else if (currentTab === 'pending') {
+    leaves = DB.Leaves.getByCompany(user.companyId, {status:'pending'});
+  } else {
+    leaves = DB.Leaves.getByCompany(user.companyId);
+  }
+
+  if (status) leaves = leaves.filter(l=>l.status===status);
+  if (month)  leaves = leaves.filter(l=>l.startDate.startsWith(month));
+
+  const users   = DB.Users.getByCompany(user.companyId);
+  const types   = DB.LeaveTypes.getByCompany(user.companyId);
+  const userMap = Object.fromEntries(users.map(u=>[u.id,u]));
+  const typeMap = Object.fromEntries(types.map(t=>[t.id,t]));
+
+  if (search) leaves = leaves.filter(l=>{
+    const u = userMap[l.userId]||{};
+    const t = typeMap[l.leaveTypeId]||{};
+    return (u.name||'').toLowerCase().includes(search) || (t.name||'').toLowerCase().includes(search) || (l.reason||'').toLowerCase().includes(search);
+  });
+
+  const head = document.getElementById('table-head');
+  const body = document.getElementById('table-body');
+  const showName = currentTab !== 'my';
+
+  head.innerHTML = `<tr>
+    ${showName?'<th>พนักงาน</th>':''}
+    <th>ประเภทการลา</th>
+    <th>วันที่ลา</th>
+    <th>จำนวน</th>
+    <th>เหตุผล</th>
+    <th>สถานะ</th>
+    <th>วันที่ยื่น</th>
+    <th></th>
+  </tr>`;
+
+  if (!leaves.length) {
+    body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">ไม่พบข้อมูล</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = leaves.map(l=>{
+    const u = userMap[l.userId]||{name:'?'};
+    const t = typeMap[l.leaveTypeId]||{name:'?',color:'#ccc'};
+    return `<tr>
+      ${showName?`<td><div class="table-user">${renderAvatar(u,'sm')}<div><div class="user-name">${u.name}</div><div class="user-sub">${u.department||''}</div></div></div></td>`:''}
+      <td><span class="leave-type-dot" style="background:${t.color}"></span> ${t.name}</td>
+      <td>${formatDateShort(l.startDate)}${l.startDate!==l.endDate?` — ${formatDateShort(l.endDate)}`:''}</td>
+      <td><strong>${l.days}</strong> วัน</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.reason||'—'}</td>
+      <td>${leaveStatusBadge(l.status)}</td>
+      <td style="color:var(--text-muted)">${formatDateShort(l.createdAt)}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="viewLeave('${l.id}')" title="ดูรายละเอียด">${iconSVG('more','14')}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-item').forEach(el=>{
+    el.classList.toggle('active', el.textContent.trim().startsWith(tab==='my'?'ประวัติ':tab==='pending'?'รอการ':'คำขอทั้ง'));
+  });
+  renderTable();
+}
+
+function openRequest() {
+  populateLeaveTypes();
+  setDefaultDates();
+  Modal.open('modal-request');
+}
+
+function populateLeaveTypes() {
+  const sel = document.getElementById('leave-type');
+  if (!sel) return;
+  const types = DB.LeaveTypes.getByCompany(user.companyId);
+  sel.innerHTML = types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+function setDefaultDates() {
+  const today = DB.today();
+  const s = document.getElementById('leave-start');
+  const e = document.getElementById('leave-end');
+  if (s) s.value = today;
+  if (e) e.value = today;
+  s?.addEventListener('change', updateDays);
+  e?.addEventListener('change', updateDays);
+}
+
+function updateDays() {
+  const start = document.getElementById('leave-start')?.value;
+  const end   = document.getElementById('leave-end')?.value;
+  if (!start || !end) return;
+  const days = Math.max(1, Math.ceil((new Date(end)-new Date(start))/86400000)+1);
+  const prev = document.getElementById('days-preview');
+  const cnt  = document.getElementById('days-count');
+  if (prev && cnt) { prev.style.display='block'; cnt.textContent=`ลา ${days} วัน`; }
+}
+
+function submitLeave() {
+  const typeId = document.getElementById('leave-type')?.value;
+  const start  = document.getElementById('leave-start')?.value;
+  const end    = document.getElementById('leave-end')?.value;
+  const reason = document.getElementById('leave-reason')?.value?.trim();
+  const attach = document.getElementById('leave-attachment')?.value?.trim();
+  if (!typeId || !start || !end || !reason) return Toast.error('กรุณากรอกข้อมูลให้ครบ');
+  if (end < start) return Toast.error('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น');
+  const balance = DB.Leaves.getBalance(user.id);
+  const bal = balance[typeId];
+  if (bal) {
+    const days = Math.ceil((new Date(end)-new Date(start))/86400000)+1;
+    if (days > bal.remaining) return Toast.error(`วันลาไม่พอ — คงเหลือ ${bal.remaining} วัน`);
+  }
+  const leave = DB.Leaves.create({ companyId: user.companyId, userId: user.id, leaveTypeId: typeId, startDate: start, endDate: end, reason, attachment: attach });
+  DB.Notifications.notifyLeave(leave, 'submitted', user.name);
+  Modal.close('modal-request');
+  Toast.success('ยื่นคำขอลาสำเร็จ รอการอนุมัติ');
+  render();
+}
+
+function viewLeave(id) {
+  const leaves  = DB.Leaves.getByCompany(user.companyId);
+  const l       = leaves.find(x=>x.id===id);
+  if (!l) return;
+  const types   = DB.LeaveTypes.getByCompany(user.companyId);
+  const users   = DB.Users.getByCompany(user.companyId);
+  const typeMap = Object.fromEntries(types.map(t=>[t.id,t]));
+  const userMap = Object.fromEntries(users.map(u=>[u.id,u]));
+  const t = typeMap[l.leaveTypeId]||{};
+  const u = userMap[l.userId]||{};
+  const approver = l.approvedBy ? userMap[l.approvedBy] : null;
+  const isManager = Auth.canApproveLeave(user);
+  const canAct = isManager && l.status === 'pending';
+
+  document.getElementById('approve-modal-title').textContent = 'รายละเอียดคำขอลา';
+  document.getElementById('approve-modal-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      ${renderAvatar(u,'lg')}
+      <div>
+        <div style="font-size:16px;font-weight:600">${u.name}</div>
+        <div style="font-size:13px;color:var(--text-muted)">${u.department||''} · ${u.position||''}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="padding:12px;background:var(--bg);border-radius:8px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">ประเภทการลา</div>
+        <div style="font-size:14px;font-weight:500"><span class="leave-type-dot" style="background:${t.color}"></span>${t.name}</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:8px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">จำนวนวัน</div>
+        <div style="font-size:14px;font-weight:500">${l.days} วัน</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:8px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">วันที่เริ่มลา</div>
+        <div style="font-size:14px;font-weight:500">${formatDate(l.startDate)}</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:8px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">วันที่สิ้นสุด</div>
+        <div style="font-size:14px;font-weight:500">${formatDate(l.endDate)}</div>
+      </div>
+    </div>
+    <div style="padding:12px;background:var(--bg);border-radius:8px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">เหตุผล</div>
+      <div style="font-size:14px">${l.reason}</div>
+    </div>
+    ${l.attachment?`<div style="padding:10px 12px;background:var(--primary-light);border-radius:8px;font-size:13px;color:var(--primary);margin-bottom:12px">${iconSVG('link','12')} เอกสาร: ${l.attachment}</div>`:''}
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      ${leaveStatusBadge(l.status)}
+      <span style="font-size:12px;color:var(--text-muted)">ยื่นเมื่อ ${formatDateShort(l.createdAt)}</span>
+    </div>
+    ${l.rejectReason?`<div style="margin-top:12px;padding:10px 12px;background:var(--danger-light);border-radius:8px;font-size:13px;color:var(--danger)">เหตุผลปฏิเสธ: ${l.rejectReason}</div>`:''}
+    ${l.approverComment?`<div style="margin-top:12px;padding:10px 12px;background:var(--accent-light);border-radius:8px;font-size:13px;color:#047857">ความคิดเห็น: ${l.approverComment}</div>`:''}
+    ${canAct?`<div class="form-group" style="margin-top:16px"><label class="form-label">ความคิดเห็น (ไม่บังคับ)</label><textarea id="approve-comment" class="form-control" rows="2" placeholder="ระบุความคิดเห็นหรือเหตุผล..."></textarea></div>`:''}
+  `;
+  document.getElementById('approve-modal-footer').innerHTML = canAct ? `
+    <button class="btn btn-secondary" onclick="Modal.close('modal-approve')">ปิด</button>
+    <button class="btn btn-danger" onclick="rejectLeave('${l.id}')">${iconSVG('x','14')} ปฏิเสธ</button>
+    <button class="btn btn-success" onclick="approveLeave('${l.id}')">${iconSVG('check','14')} อนุมัติ</button>
+  ` : `<button class="btn btn-secondary" onclick="Modal.close('modal-approve')">ปิด</button>`;
+  Modal.open('modal-approve');
+}
+
+function approveLeave(id) {
+  const comment = document.getElementById('approve-comment')?.value||'';
+  const leave = DB.Leaves.approve(id, user.id, comment);
+  if (leave) { DB.Notifications.notifyLeave(leave, 'approved', user.name); Toast.success('อนุมัติการลาแล้ว'); }
+  Modal.close('modal-approve');
+  render();
+}
+
+function rejectLeave(id) {
+  const reason = document.getElementById('approve-comment')?.value||'';
+  const leave = DB.Leaves.reject(id, user.id, reason);
+  if (leave) { DB.Notifications.notifyLeave(leave, 'rejected', user.name); Toast.warning('ปฏิเสธคำขอลาแล้ว'); }
+  Modal.close('modal-approve');
+  render();
+}
+
+function getLast12Months() {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ value: d.toISOString().slice(0,7), label: d.toLocaleDateString('th-TH',{year:'numeric',month:'long'}) });
+  }
+  return months;
+}
+</script>
+</body>
+</html>

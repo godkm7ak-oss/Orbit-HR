@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>การตั้งค่า — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modals rendered dynamically -->
+<div class="modal-overlay" id="modal-location">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="loc-modal-title">เพิ่มสถานที่ทำงาน</span>
+      <button class="modal-close" onclick="Modal.close('modal-location')">✕</button>
+    </div>
+    <div class="modal-body" id="loc-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-location')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveLocation()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-shift">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="shift-modal-title">เพิ่มกะงาน</span>
+      <button class="modal-close" onclick="Modal.close('modal-shift')">✕</button>
+    </div>
+    <div class="modal-body" id="shift-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-shift')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveShift()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-leave-type">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="lt-modal-title">เพิ่มประเภทการลา</span>
+      <button class="modal-close" onclick="Modal.close('modal-leave-type')">✕</button>
+    </div>
+    <div class="modal-body" id="lt-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-leave-type')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveLeaveType()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('settings', 'การตั้งค่า');
+if (user && !Auth.canApproveLeave(user)) window.location.href = 'dashboard.html';
+
+const COLORS = ['#4F46E5','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#EC4899','#64748B'];
+let editLocId   = null;
+let editShiftId = null;
+let editLTId    = null;
+
+if (user) render();
+
+/* ── Page shell ─────────────────────────────────────────────────────── */
+function render() {
+  const company = DB.Companies.get(user.companyId);
+  const planLabel = { trial:'ทดลองใช้', starter:'Starter (20 คน)', pro:'Pro (100 คน)', enterprise:'Enterprise (ไม่จำกัด)' };
+
+  document.getElementById('main').innerHTML = `
+    <div class="tabs" style="margin-bottom:20px">
+      <button class="tab-btn active" onclick="showTab('company',this)">บริษัท</button>
+      <button class="tab-btn" onclick="showTab('locations',this)">สถานที่ GPS</button>
+      <button class="tab-btn" onclick="showTab('shifts',this)">กะงาน</button>
+      <button class="tab-btn" onclick="showTab('leave-types',this)">ประเภทการลา</button>
+      <button class="tab-btn" onclick="showTab('data',this)">ข้อมูล</button>
+    </div>
+
+    <!-- Company -->
+    <div id="tab-company">
+      <div class="card" style="max-width:600px">
+        <div class="card-header"><span class="card-title">ข้อมูลบริษัท</span></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">ชื่อบริษัท</label>
+            <input type="text" id="co-name" class="form-input" value="${esc(company?.name||'')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">รหัสบริษัท (Company Code)</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" class="form-input" value="${esc(company?.code||'')}" readonly style="background:var(--bg-secondary);color:var(--text-muted);flex:1;font-family:monospace;font-weight:700">
+              <button class="btn btn-secondary" onclick="copyText('${esc(company?.code||'')}')">คัดลอก</button>
+            </div>
+            <div class="form-hint">แชร์รหัสนี้ให้พนักงานใช้เมื่อ login</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ที่อยู่</label>
+            <textarea id="co-address" class="form-input" rows="2" style="resize:vertical">${esc(company?.address||'')}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">เบอร์โทรศัพท์</label>
+            <input type="tel" id="co-phone" class="form-input" value="${esc(company?.phone||'')}" placeholder="02-xxx-xxxx">
+          </div>
+          <div class="form-group">
+            <label class="form-label">เวลาทำงาน (ค่าเริ่มต้น)</label>
+            <div class="grid grid-2">
+              <div>
+                <label style="font-size:11px;color:var(--text-muted)">เริ่มงาน</label>
+                <input type="time" id="co-work-start" class="form-input" value="${esc(company?.workStart||'08:00')}">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text-muted)">เลิกงาน</label>
+                <input type="time" id="co-work-end" class="form-input" value="${esc(company?.workEnd||'17:00')}">
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">แผน</label>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--primary-light);border-radius:8px">
+              <span style="font-size:13px;font-weight:700;color:var(--primary)">${planLabel[company?.plan||'trial']||'Trial'}</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveCompany()">บันทึกข้อมูลบริษัท</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Locations -->
+    <div id="tab-locations" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">สถานที่ทำงาน & GPS</span>
+          <button class="btn btn-primary btn-sm" onclick="openAddLocation()">${iconSVG('plus','14')} เพิ่มสถานที่</button>
+        </div>
+        <div id="locations-list"></div>
+      </div>
+      <div class="card" style="margin-top:16px;background:var(--bg-secondary)">
+        <div class="card-body" style="padding:14px 20px;font-size:12px;color:var(--text-secondary);line-height:1.7">
+          <strong style="font-size:13px;color:var(--text-primary)">หมายเหตุ:</strong><br>
+          ถ้าไม่มีสถานที่ — พนักงานเช็คอินได้จากทุกที่ (บันทึก GPS เท่านั้น)<br>
+          ถ้ามีสถานที่ — ระบบตรวจสอบว่าพนักงานอยู่ในรัศมีก่อนเช็คอิน<br>
+          รัศมีแนะนำ: อาคารเดี่ยว 50–100 ม. / พื้นที่กว้าง 200–500 ม.
+        </div>
+      </div>
+    </div>
+
+    <!-- Shifts -->
+    <div id="tab-shifts" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">กะงาน</span>
+          <button class="btn btn-primary btn-sm" onclick="openAddShift()">${iconSVG('plus','14')} เพิ่มกะ</button>
+        </div>
+        <div id="shifts-list"></div>
+      </div>
+    </div>
+
+    <!-- Leave Types -->
+    <div id="tab-leave-types" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">ประเภทการลา</span>
+          <button class="btn btn-primary btn-sm" onclick="openAddLT()">${iconSVG('plus','14')} เพิ่มประเภท</button>
+        </div>
+        <div id="lt-list"></div>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div id="tab-data" style="display:none">
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Export ข้อมูล</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">สำรองข้อมูลทั้งหมดเป็นไฟล์ JSON</p>
+            <button class="btn btn-secondary" onclick="exportData()" style="width:100%">${iconSVG('download','14')} Export ข้อมูลทั้งหมด</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Import ข้อมูล</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">นำเข้าจากไฟล์ JSON ที่ Export ไว้ก่อนหน้า</p>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="width:100%">${iconSVG('upload','14')} Import ข้อมูล</button>
+          </div>
+        </div>
+        <div class="card" style="border-color:#FCA5A5">
+          <div class="card-header"><span class="card-title" style="color:var(--danger)">ลบข้อมูล</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">ล้างข้อมูลเช็คอินและการลาทั้งหมด (กู้คืนไม่ได้)</p>
+            <button class="btn btn-danger" onclick="clearTransactions()" style="width:100%">${iconSVG('trash','14')} ล้างข้อมูล Transaction</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">รีเซ็ต Demo</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">โหลดข้อมูลตัวอย่างใหม่ทั้งหมด (ลบข้อมูลปัจจุบัน)</p>
+            <button class="btn btn-secondary" onclick="resetDemo()" style="width:100%">${iconSVG('refresh-cw','14')} รีเซ็ต Demo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderLocations();
+  renderShifts();
+  renderLeaveTypes();
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = '';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function esc(str) {
+  return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ── Company ───────────────────────────────────────────────────────── */
+function saveCompany() {
+  const name      = document.getElementById('co-name').value.trim();
+  const address   = document.getElementById('co-address').value.trim();
+  const phone     = document.getElementById('co-phone').value.trim();
+  const workStart = document.getElementById('co-work-start').value;
+  const workEnd   = document.getElementById('co-work-end').value;
+  if (!name) { Toast.error('กรุณาใส่ชื่อบริษัท'); return; }
+  DB.Companies.update(user.companyId, { name, address, phone, workStart, workEnd });
+  Toast.success('บันทึกข้อมูลบริษัทแล้ว');
+}
+
+/* ── Locations ──────────────────────────────────────────────────────── */
+function getLocations() {
+  return DB.Companies.get(user.companyId)?.locations || [];
+}
+
+function saveLocations(locs) {
+  DB.Companies.update(user.companyId, { locations: locs });
+}
+
+function renderLocations() {
+  const locs = getLocations();
+  const el   = document.getElementById('locations-list');
+  if (!el) return;
+  if (!locs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;font-size:13px;color:var(--text-muted)">ยังไม่มีสถานที่ — พนักงานเช็คอินได้จากทุกที่</div>';
+    return;
+  }
+  el.innerHTML = locs.map(l => `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border-light)">
+      <div style="width:36px;height:36px;border-radius:8px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">${iconSVG('map-pin','16')}</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600">${esc(l.name)}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${Number(l.lat).toFixed(5)}, ${Number(l.lng).toFixed(5)} · รัศมี ${l.radius||100} ม.</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLocation('${l.id}')">${iconSVG('edit-2','14')}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--danger)" onclick="deleteLocation('${l.id}')">${iconSVG('trash','14')}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function buildLocationForm(loc) {
+  return `
+    <div class="form-group">
+      <label class="form-label">ชื่อสาขา / สถานที่ <span class="text-danger">*</span></label>
+      <input type="text" id="loc-name" class="form-input" placeholder="เช่น สำนักงานใหญ่" value="${esc(loc?.name||'')}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Latitude <span class="text-danger">*</span></label>
+      <input type="number" id="loc-lat" class="form-input" placeholder="13.7563" step="any" value="${loc?.lat||''}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Longitude <span class="text-danger">*</span></label>
+      <input type="number" id="loc-lng" class="form-input" placeholder="100.5018" step="any" value="${loc?.lng||''}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">รัศมี (เมตร)</label>
+      <input type="number" id="loc-radius" class="form-input" placeholder="100" min="10" max="2000" value="${loc?.radius||100}">
+    </div>
+    <div style="background:var(--bg-secondary);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-secondary);margin-bottom:4px">
+      <strong>วิธีหาค่า Lat/Lng:</strong> เปิด Google Maps → คลิกขวาที่สถานที่ → คัดลอกตัวเลขที่ปรากฏ
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="useMyLocation()">${iconSVG('map-pin','13')} ใช้ตำแหน่ง GPS ปัจจุบัน</button>
+  `;
+}
+
+function openAddLocation() {
+  editLocId = null;
+  document.getElementById('loc-modal-title').textContent = 'เพิ่มสถานที่ทำงาน';
+  document.getElementById('loc-modal-body').innerHTML = buildLocationForm(null);
+  Modal.open('modal-location');
+}
+
+function openEditLocation(id) {
+  const loc = getLocations().find(x => x.id === id);
+  if (!loc) return;
+  editLocId = id;
+  document.getElementById('loc-modal-title').textContent = 'แก้ไขสถานที่';
+  document.getElementById('loc-modal-body').innerHTML = buildLocationForm(loc);
+  Modal.open('modal-location');
+}
+
+function saveLocation() {
+  const name   = document.getElementById('loc-name').value.trim();
+  const lat    = parseFloat(document.getElementById('loc-lat').value);
+  const lng    = parseFloat(document.getElementById('loc-lng').value);
+  const radius = parseInt(document.getElementById('loc-radius').value) || 100;
+  if (!name) { Toast.error('กรุณาใส่ชื่อสถานที่'); return; }
+  if (isNaN(lat) || isNaN(lng)) { Toast.error('กรุณาใส่ Latitude/Longitude'); return; }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { Toast.error('Lat/Lng ไม่ถูกต้อง'); return; }
+
+  const locs = getLocations();
+  if (editLocId) {
+    const idx = locs.findIndex(x => x.id === editLocId);
+    if (idx !== -1) locs[idx] = { ...locs[idx], name, lat, lng, radius };
+  } else {
+    locs.push({ id: 'loc_' + Date.now(), name, lat, lng, radius });
+  }
+  saveLocations(locs);
+  Modal.close('modal-location');
+  Toast.success('บันทึกสถานที่แล้ว');
+  renderLocations();
+}
+
+function deleteLocation(id) {
+  confirmDialog('ลบสถานที่นี้?', () => {
+    saveLocations(getLocations().filter(x => x.id !== id));
+    Toast.success('ลบสถานที่แล้ว');
+    renderLocations();
+  }, true);
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) { Toast.error('Browser ไม่รองรับ GPS'); return; }
+  Toast.info('กำลังระบุตำแหน่ง...');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const latEl = document.getElementById('loc-lat');
+    const lngEl = document.getElementById('loc-lng');
+    if (latEl) latEl.value = pos.coords.latitude.toFixed(6);
+    if (lngEl) lngEl.value = pos.coords.longitude.toFixed(6);
+    Toast.success('ดึงตำแหน่งแล้ว');
+  }, () => Toast.error('ไม่สามารถดึงตำแหน่งได้ — ตรวจสอบการอนุญาต GPS'));
+}
+
+/* ── Shifts ────────────────────────────────────────────────────────── */
+function renderShifts() {
+  const shifts = DB.Shifts.getByCompany(user.companyId);
+  const el     = document.getElementById('shifts-list');
+  if (!el) return;
+  if (!shifts.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;font-size:13px;color:var(--text-muted)">ยังไม่มีกะงาน</div>';
+    return;
+  }
+  el.innerHTML = shifts.map(s => `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border-light)">
+      <div style="width:10px;height:36px;border-radius:4px;background:${s.color};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600">${esc(s.name)}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${s.startTime} – ${s.endTime}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditShift('${s.id}')">${iconSVG('edit-2','14')}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--danger)" onclick="deleteShift('${s.id}')">${iconSVG('trash','14')}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function buildShiftForm(s) {
+  const colorDots = COLORS.map(c => `
+    <div onclick="pickColor(this,'shift-color','${c}')" data-color="${c}"
+      style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${(s?.color||'#4F46E5')===c?c:'transparent'};transition:border-color .15s;flex-shrink:0"></div>
+  `).join('');
+  return `
+    <div class="form-group">
+      <label class="form-label">ชื่อกะ <span class="text-danger">*</span></label>
+      <input type="text" id="shift-name" class="form-input" placeholder="เช่น กะเช้า" value="${esc(s?.name||'')}">
+    </div>
+    <div class="grid grid-2">
+      <div class="form-group">
+        <label class="form-label">เริ่มงาน</label>
+        <input type="time" id="shift-start" class="form-input" value="${s?.startTime||'08:00'}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">สิ้นสุด</label>
+        <input type="time" id="shift-end" class="form-input" value="${s?.endTime||'17:00'}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">สีกะ</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${colorDots}</div>
+      <input type="hidden" id="shift-color" value="${s?.color||'#4F46E5'}">
+    </div>
+  `;
+}
+
+function openAddShift() {
+  editShiftId = null;
+  document.getElementById('shift-modal-title').textContent = 'เพิ่มกะงาน';
+  document.getElementById('shift-modal-body').innerHTML = buildShiftForm(null);
+  Modal.open('modal-shift');
+}
+
+function openEditShift(id) {
+  const s = DB.Shifts.getByCompany(user.companyId).find(x => x.id === id);
+  if (!s) return;
+  editShiftId = id;
+  document.getElementById('shift-modal-title').textContent = 'แก้ไขกะงาน';
+  document.getElementById('shift-modal-body').innerHTML = buildShiftForm(s);
+  Modal.open('modal-shift');
+}
+
+function saveShift() {
+  const name  = document.getElementById('shift-name').value.trim();
+  const start = document.getElementById('shift-start').value;
+  const end   = document.getElementById('shift-end').value;
+  const color = document.getElementById('shift-color').value || '#4F46E5';
+  if (!name || !start || !end) { Toast.error('กรุณากรอกข้อมูลให้ครบ'); return; }
+  if (editShiftId) {
+    DB.Shifts.update(editShiftId, { name, startTime: start, endTime: end, color });
+  } else {
+    DB.Shifts.create({ companyId: user.companyId, name, startTime: start, endTime: end, color });
+  }
+  Modal.close('modal-shift');
+  Toast.success('บันทึกกะงานแล้ว');
+  renderShifts();
+}
+
+function deleteShift(id) {
+  confirmDialog('ลบกะนี้? ตารางงานที่ผูกอยู่จะหายทั้งหมด', () => {
+    DB.Shifts.delete(id);
+    Toast.success('ลบกะแล้ว');
+    renderShifts();
+  }, true);
+}
+
+/* ── Leave Types ───────────────────────────────────────────────────── */
+function renderLeaveTypes() {
+  const types = DB.LeaveTypes.getByCompany(user.companyId);
+  const el    = document.getElementById('lt-list');
+  if (!el) return;
+  if (!types.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;font-size:13px;color:var(--text-muted)">ยังไม่มีประเภทการลา</div>';
+    return;
+  }
+  el.innerHTML = types.map(t => `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border-light)">
+      <div style="width:10px;height:10px;border-radius:50%;background:${t.color};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600">${esc(t.name)}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${t.maxDays ? `${t.maxDays} วัน/ปี` : 'ไม่จำกัด'} ${t.requiresDoc ? '· ต้องมีเอกสาร' : ''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLT('${t.id}')">${iconSVG('edit-2','14')}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--danger)" onclick="deleteLT('${t.id}')">${iconSVG('trash','14')}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function buildLTForm(t) {
+  const colorDots = COLORS.map(c => `
+    <div onclick="pickColor(this,'lt-color','${c}')" data-color="${c}"
+      style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${(t?.color||'#4F46E5')===c?c:'transparent'};transition:border-color .15s;flex-shrink:0"></div>
+  `).join('');
+  return `
+    <div class="form-group">
+      <label class="form-label">ชื่อประเภทการลา <span class="text-danger">*</span></label>
+      <input type="text" id="lt-name" class="form-input" placeholder="เช่น ลาพักร้อน" value="${esc(t?.name||'')}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">จำนวนวันต่อปี</label>
+      <input type="number" id="lt-days" class="form-input" placeholder="10" min="0" max="365" value="${t?.maxDays||''}">
+      <div class="form-hint">ใส่ 0 หรือเว้นว่าง = ไม่จำกัดวัน</div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="lt-requires-doc" style="width:16px;height:16px;accent-color:var(--primary)" ${t?.requiresDoc?'checked':''}>
+        <span style="font-size:13px">ต้องแนบเอกสารประกอบ</span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label">สี</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${colorDots}</div>
+      <input type="hidden" id="lt-color" value="${t?.color||'#4F46E5'}">
+    </div>
+  `;
+}
+
+function openAddLT() {
+  editLTId = null;
+  document.getElementById('lt-modal-title').textContent = 'เพิ่มประเภทการลา';
+  document.getElementById('lt-modal-body').innerHTML = buildLTForm(null);
+  Modal.open('modal-leave-type');
+}
+
+function openEditLT(id) {
+  const t = DB.LeaveTypes.getByCompany(user.companyId).find(x => x.id === id);
+  if (!t) return;
+  editLTId = id;
+  document.getElementById('lt-modal-title').textContent = 'แก้ไขประเภทการลา';
+  document.getElementById('lt-modal-body').innerHTML = buildLTForm(t);
+  Modal.open('modal-leave-type');
+}
+
+function saveLeaveType() {
+  const name = document.getElementById('lt-name').value.trim();
+  const days = parseInt(document.getElementById('lt-days').value) || 0;
+  const requiresDoc = document.getElementById('lt-requires-doc').checked;
+  const color = document.getElementById('lt-color').value || '#4F46E5';
+  if (!name) { Toast.error('กรุณาใส่ชื่อประเภทการลา'); return; }
+  if (editLTId) {
+    DB.LeaveTypes.update(editLTId, { name, maxDays: days, requiresDoc, color });
+  } else {
+    DB.LeaveTypes.create({ companyId: user.companyId, name, maxDays: days, requiresDoc, color });
+  }
+  Modal.close('modal-leave-type');
+  Toast.success('บันทึกประเภทการลาแล้ว');
+  renderLeaveTypes();
+}
+
+function deleteLT(id) {
+  confirmDialog('ลบประเภทการลานี้?', () => {
+    DB.LeaveTypes.delete(id);
+    Toast.success('ลบแล้ว');
+    renderLeaveTypes();
+  }, true);
+}
+
+/* ── Color picker helper ────────────────────────────────────────────── */
+function pickColor(dotEl, inputId, color) {
+  document.getElementById(inputId).value = color;
+  dotEl.closest('div').querySelectorAll('[data-color]').forEach(d => {
+    d.style.borderColor = d.dataset.color === color ? color : 'transparent';
+  });
+}
+
+/* ── Data management ────────────────────────────────────────────────── */
+function exportData() {
+  const LKEYS = ['orbit-companies','orbit-users','orbit-leave-types','orbit-leaves',
+                 'orbit-attendance','orbit-shifts','orbit-schedules','orbit-meetings',
+                 'orbit-announcements','orbit-notifications'];
+  const data = { exported: new Date().toISOString(), companyId: user.companyId };
+  LKEYS.forEach(k => { data[k] = JSON.parse(localStorage.getItem(k)||'[]'); });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: `orbit-hr-backup-${DB.today()}.json` });
+  a.click();
+  URL.revokeObjectURL(url);
+  Toast.success('Export สำเร็จ');
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.exported) { Toast.error('ไฟล์ไม่ถูกต้อง'); return; }
+      confirmDialog('นำเข้าข้อมูล? ข้อมูลปัจจุบันจะถูกแทนที่', () => {
+        const LKEYS = ['orbit-companies','orbit-users','orbit-leave-types','orbit-leaves',
+                       'orbit-attendance','orbit-shifts','orbit-schedules','orbit-meetings',
+                       'orbit-announcements','orbit-notifications'];
+        LKEYS.forEach(k => { if (data[k]) localStorage.setItem(k, JSON.stringify(data[k])); });
+        Toast.success('Import สำเร็จ — กำลังรีโหลด...');
+        setTimeout(() => window.location.reload(), 1000);
+      }, false);
+    } catch { Toast.error('ไฟล์ไม่ถูกต้อง — ต้องเป็น JSON ที่ Export จาก Orbit HR'); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function clearTransactions() {
+  confirmDialog('ลบข้อมูลเช็คอินและการลาทั้งหมด? ไม่สามารถกู้คืนได้', () => {
+    const cid = user.companyId;
+    ['orbit-attendance','orbit-leaves'].forEach(k => {
+      const filtered = JSON.parse(localStorage.getItem(k)||'[]').filter(r => r.companyId !== cid);
+      localStorage.setItem(k, JSON.stringify(filtered));
+    });
+    Toast.success('ล้างข้อมูล Transaction แล้ว');
+  }, true);
+}
+
+function resetDemo() {
+  confirmDialog('รีเซ็ต Demo? ข้อมูลทั้งหมดจะถูกลบและโหลดใหม่', () => {
+    localStorage.clear();
+    DB.seedDemo();
+    Toast.success('รีเซ็ต Demo แล้ว — กำลังไป login...');
+    setTimeout(() => window.location.href = 'auth.html', 1200);
+  }, true);
+}
+
+function copyText(text) {
+  navigator.clipboard?.writeText(text).then(() => Toast.success('คัดลอกแล้ว')).catch(() => Toast.error('ไม่สามารถคัดลอกได้'));
+}
+</script>
+</body>
+</html>

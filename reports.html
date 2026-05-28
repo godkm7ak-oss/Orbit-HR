@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงาน — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('reports', 'รายงาน & Analytics');
+let selectedMonth = DB.today().slice(0,7);
+if (user) render();
+
+function render() {
+  const main = document.getElementById('main');
+  const now  = new Date();
+  const months = getLast12Months();
+
+  main.innerHTML = `
+    <!-- Filter -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-body" style="padding:14px 20px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:13px;font-weight:500">เดือน:</label>
+          <select class="form-select" style="width:auto" id="month-picker" onchange="selectedMonth=this.value;render()">
+            ${months.map(m=>`<option value="${m.value}" ${m.value===selectedMonth?'selected':''}>${m.label}</option>`).join('')}
+          </select>
+          <div class="btn-group" style="margin-left:auto">
+            <button class="btn btn-secondary" onclick="exportAttendance()">${iconSVG('download','14')} Export เช็คอิน</button>
+            <button class="btn btn-secondary" onclick="exportLeaves()">${iconSVG('download','14')} Export การลา</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI row -->
+    <div class="grid grid-4" style="margin-bottom:20px" id="kpi-row"></div>
+
+    <!-- Charts row -->
+    <div class="grid grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">การเข้างานรายวัน</span></div>
+        <div class="card-body"><canvas id="daily-chart" height="160"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">สัดส่วนการลาตามประเภท</span></div>
+        <div class="card-body" style="display:flex;align-items:center;justify-content:center"><canvas id="leave-chart" height="160" style="max-width:220px"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Tables row -->
+    <div class="grid grid-2">
+      ${renderTopLate()}
+      ${renderLeaveTable()}
+    </div>
+  `;
+
+  renderKPIs();
+  renderDailyChart();
+  renderLeaveChart();
+}
+
+function renderKPIs() {
+  const employees = DB.Users.getByCompany(user.companyId).filter(u=>u.status==='active'&&u.role!=='admin');
+  const att = DB.Attendance.getByCompany(user.companyId, { month: selectedMonth });
+  const leaves = DB.Leaves.getByCompany(user.companyId, { month: selectedMonth, status: 'approved' });
+  const totalShifts = employees.length * workingDaysInMonth(selectedMonth);
+  const presentRate = totalShifts ? pct(att.length, totalShifts) : 0;
+  const lateCount   = att.filter(a=>a.status==='late').length;
+  const lateRate    = att.length ? pct(lateCount, att.length) : 0;
+  const totalLeaveDays = leaves.reduce((s,l)=>s+l.days,0);
+
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#ECFDF5;color:#10B981">${iconSVG('trending-up','18')}</div>
+      <div class="stat-value">${presentRate}%</div>
+      <div class="stat-label">อัตราการมาทำงาน</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFFBEB;color:#F59E0B">${iconSVG('clock','18')}</div>
+      <div class="stat-value">${lateCount}</div>
+      <div class="stat-label">ครั้งที่เข้างานสาย (${lateRate}%)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5">${iconSVG('calendar','18')}</div>
+      <div class="stat-value">${totalLeaveDays}</div>
+      <div class="stat-label">วันลาทั้งหมด</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#F0F9FF;color:#0EA5E9">${iconSVG('users','18')}</div>
+      <div class="stat-value">${employees.length}</div>
+      <div class="stat-label">พนักงาน</div>
+    </div>
+  `;
+}
+
+function renderDailyChart() {
+  const [year, month] = selectedMonth.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days = Array.from({length: daysInMonth}, (_, i) => {
+    const d = `${selectedMonth}-${String(i+1).padStart(2,'0')}`;
+    return d;
+  });
+  const present = days.map(d => DB.Attendance.getByCompany(user.companyId, {date:d}).length);
+  const late    = days.map(d => DB.Attendance.getByCompany(user.companyId, {date:d}).filter(a=>a.status==='late').length);
+  const labels  = days.map(d => String(new Date(d).getDate()));
+
+  const ctx = document.getElementById('daily-chart');
+  if (!ctx) return;
+  if (ctx._chartInstance) ctx._chartInstance.destroy();
+  ctx._chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'เข้างาน', data: present, backgroundColor: '#4F46E5', borderRadius: 3 },
+      { label: 'สาย',    data: late,    backgroundColor: '#F59E0B', borderRadius: 3 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#F3F4F6' } } } }
+  });
+}
+
+function renderLeaveChart() {
+  const types  = DB.LeaveTypes.getByCompany(user.companyId);
+  const leaves = DB.Leaves.getByCompany(user.companyId, { month: selectedMonth, status: 'approved' });
+  const data   = types.map(t => leaves.filter(l=>l.leaveTypeId===t.id).reduce((s,l)=>s+l.days,0));
+  const ctx = document.getElementById('leave-chart');
+  if (!ctx) return;
+  if (ctx._chartInstance) ctx._chartInstance.destroy();
+  if (data.every(d=>d===0)) { ctx.parentElement.innerHTML = '<div class="empty-state" style="padding:24px"><div style="font-size:13px;color:var(--text-muted)">ไม่มีข้อมูลการลาเดือนนี้</div></div>'; return; }
+  ctx._chartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: types.map(t=>t.name), datasets: [{ data, backgroundColor: types.map(t=>t.color), borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10 } } } }
+  });
+}
+
+function renderTopLate() {
+  const employees = DB.Users.getByCompany(user.companyId);
+  const att = DB.Attendance.getByCompany(user.companyId, { month: selectedMonth, status: 'late' });
+  const counts = {};
+  att.forEach(a => { counts[a.userId] = (counts[a.userId]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const userMap = Object.fromEntries(employees.map(u=>[u.id,u]));
+  return `
+  <div class="card">
+    <div class="card-header"><span class="card-title">สายบ่อยที่สุดเดือนนี้</span></div>
+    <div class="card-body" style="padding:0">
+      ${!sorted.length ? '<div style="text-align:center;padding:32px;font-size:13px;color:var(--text-muted)">ไม่มีข้อมูลสาย 🎉</div>' :
+      sorted.map(([uid, count], i) => {
+        const u = userMap[uid]||{};
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border-light)">
+          <div style="width:22px;height:22px;border-radius:50%;background:${i<3?['#EF4444','#F59E0B','#FCD34D'][i]:'var(--border)'};color:${i<3?'#fff':'var(--text-muted)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${i+1}</div>
+          ${renderAvatar(u,'sm')}
+          <div style="flex:1"><div style="font-size:13px;font-weight:500">${u.name||'—'}</div><div style="font-size:11px;color:var(--text-muted)">${u.department||''}</div></div>
+          <div style="font-size:15px;font-weight:700;color:var(--warning)">${count} ครั้ง</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderLeaveTable() {
+  const types  = DB.LeaveTypes.getByCompany(user.companyId);
+  const leaves = DB.Leaves.getByCompany(user.companyId, { month: selectedMonth });
+  const pending  = leaves.filter(l=>l.status==='pending').length;
+  const approved = leaves.filter(l=>l.status==='approved').length;
+  const rejected = leaves.filter(l=>l.status==='rejected').length;
+  const typeMap  = Object.fromEntries(types.map(t=>[t.id,t]));
+  const typeCounts = {};
+  leaves.filter(l=>l.status==='approved').forEach(l=>{ typeCounts[l.leaveTypeId]=(typeCounts[l.leaveTypeId]||0)+l.days; });
+  return `
+  <div class="card">
+    <div class="card-header"><span class="card-title">สรุปการลาเดือนนี้</span></div>
+    <div class="card-body" style="padding:0">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border-light)">
+        <div style="padding:16px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--warning)">${pending}</div><div style="font-size:11px;color:var(--text-muted)">รอการอนุมัติ</div></div>
+        <div style="padding:16px;text-align:center;border-left:1px solid var(--border-light);border-right:1px solid var(--border-light)"><div style="font-size:24px;font-weight:700;color:var(--accent)">${approved}</div><div style="font-size:11px;color:var(--text-muted)">อนุมัติแล้ว</div></div>
+        <div style="padding:16px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--danger)">${rejected}</div><div style="font-size:11px;color:var(--text-muted)">ถูกปฏิเสธ</div></div>
+      </div>
+      ${types.map(t=>{
+        const days = typeCounts[t.id]||0;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--border-light)">
+          <span style="width:10px;height:10px;border-radius:50%;background:${t.color};flex-shrink:0"></span>
+          <span style="font-size:13px;flex:1">${t.name}</span>
+          <span style="font-size:15px;font-weight:700;color:var(--text-primary)">${days} วัน</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function getLast12Months() {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ value: d.toISOString().slice(0,7), label: d.toLocaleDateString('th-TH',{year:'numeric',month:'long'}) });
+  }
+  return months;
+}
+
+function workingDaysInMonth(monthStr) {
+  const [y,m] = monthStr.split('-').map(Number);
+  const days = new Date(y,m,0).getDate();
+  let count = 0;
+  for (let i=1;i<=days;i++) { const day=new Date(y,m-1,i).getDay(); if(day!==0&&day!==6) count++; }
+  return count;
+}
+
+function exportAttendance() {
+  const csv = DB.Attendance.exportCSV(user.companyId, { month: selectedMonth });
+  downloadCSV(csv, `attendance_${selectedMonth}.csv`);
+  Toast.success('Export เช็คอินสำเร็จ');
+}
+
+function exportLeaves() {
+  const leaves = DB.Leaves.getByCompany(user.companyId, { month: selectedMonth });
+  const users  = DB.Users.getByCompany(user.companyId);
+  const types  = DB.LeaveTypes.getByCompany(user.companyId);
+  const uMap   = Object.fromEntries(users.map(u=>[u.id,u]));
+  const tMap   = Object.fromEntries(types.map(t=>[t.id,t]));
+  const statusThai = { pending:'รอการอนุมัติ', approved:'อนุมัติแล้ว', rejected:'ถูกปฏิเสธ', cancelled:'ยกเลิก' };
+  const header = ['ชื่อ-นามสกุล','รหัสพนักงาน','ประเภทการลา','วันที่เริ่ม','วันที่สิ้นสุด','จำนวนวัน','เหตุผล','สถานะ'];
+  const rows = leaves.map(l=>{
+    const u = uMap[l.userId]||{}; const t = tMap[l.leaveTypeId]||{};
+    return [u.name||'',u.employeeCode||'',t.name||'',l.startDate,l.endDate,l.days,l.reason||'',statusThai[l.status]||l.status];
+  });
+  const csv = [header,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  downloadCSV(csv, `leaves_${selectedMonth}.csv`);
+  Toast.success('Export การลาสำเร็จ');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ประชุม & ประกาศ — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: New Meeting -->
+<div class="modal-overlay" id="modal-meeting">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="meeting-modal-title">สร้างนัดประชุม</span>
+      <button class="modal-close" onclick="Modal.close('modal-meeting')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">ชื่อประชุม <span class="required">*</span></label>
+        <input type="text" id="m-title" class="form-control" placeholder="เช่น ประชุมทีมประจำสัปดาห์">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่ <span class="required">*</span></label>
+          <input type="date" id="m-date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เวลาเริ่ม <span class="required">*</span></label>
+          <input type="time" id="m-start" class="form-control" value="09:00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เวลาสิ้นสุด</label>
+          <input type="time" id="m-end" class="form-control" value="10:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สถานที่</label>
+          <input type="text" id="m-location" class="form-control" placeholder="เช่น ห้องประชุมชั้น 2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ลิงก์ประชุมออนไลน์</label>
+        <input type="url" id="m-link" class="form-control" placeholder="https://meet.google.com/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <textarea id="m-desc" class="form-control" rows="3" placeholder="วาระการประชุม หรือรายละเอียดเพิ่มเติม..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ผู้เข้าร่วม <span class="required">*</span></label>
+        <div style="border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;padding:8px" id="attendees-list"></div>
+        <div style="margin-top:6px;display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="selectAll()">เลือกทั้งหมด</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAll()">ล้างการเลือก</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-meeting')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveMeeting()">สร้างประชุม</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: New Announcement -->
+<div class="modal-overlay" id="modal-ann">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">สร้างประกาศ</span>
+      <button class="modal-close" onclick="Modal.close('modal-ann')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">หัวข้อประกาศ <span class="required">*</span></label>
+        <input type="text" id="ann-title" class="form-control" placeholder="หัวข้อสำคัญ...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">เนื้อหา <span class="required">*</span></label>
+        <textarea id="ann-content" class="form-control" rows="5" placeholder="รายละเอียดประกาศ..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">กลุ่มเป้าหมาย</label>
+        <select id="ann-audience" class="form-select">
+          <option value="all">พนักงานทั้งหมด</option>
+          <option value="manager">ผู้จัดการและ HR เท่านั้น</option>
+        </select>
+      </div>
+      <div class="checkbox-wrap">
+        <input type="checkbox" id="ann-pin">
+        <label for="ann-pin" style="font-size:13px;cursor:pointer">📌 ปักหมุดประกาศนี้ไว้ด้านบน</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-ann')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAnnouncement()">เผยแพร่ประกาศ</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('meetings', 'ประชุม & ประกาศ');
+const isManager = Auth.canApproveLeave(user);
+let activeTab = 'meetings';
+
+if (user) render();
+
+function getHeaderActions() {
+  return isManager ? `
+    <button class="btn btn-secondary" onclick="openAnnouncement()">${iconSVG('megaphone','15')} ประกาศ</button>
+    <button class="btn btn-primary" onclick="openMeeting()">${iconSVG('plus','15')} นัดประชุม</button>
+  ` : '';
+}
+
+function render() {
+  const today    = DB.today();
+  const meetings = DB.Meetings.getForUser(user.id);
+  const upcoming = meetings.filter(m => m.date >= today);
+  const past     = meetings.filter(m => m.date < today);
+  const anns     = DB.Announcements.getByCompany(user.companyId);
+
+  // Re-render header with actions
+  buildHeader('ประชุม & ประกาศ', getHeaderActions());
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="tabs" style="margin-bottom:20px">
+      <button class="tab-item ${activeTab==='meetings'?'active':''}" onclick="switchTab('meetings')">ประชุม <span class="badge badge-primary" style="margin-left:4px">${upcoming.length}</span></button>
+      <button class="tab-item ${activeTab==='announcements'?'active':''}" onclick="switchTab('announcements')">ประกาศ <span class="badge badge-warning" style="margin-left:4px">${anns.length}</span></button>
+      <button class="tab-item ${activeTab==='notifications'?'active':''}" onclick="switchTab('notifications')">การแจ้งเตือน</button>
+    </div>
+
+    <div id="tab-meetings" ${activeTab!=='meetings'?'style="display:none"':''}>
+      ${renderMeetingsTab(upcoming, past)}
+    </div>
+    <div id="tab-announcements" ${activeTab!=='announcements'?'style="display:none"':''}>
+      ${renderAnnouncementsTab(anns)}
+    </div>
+    <div id="tab-notifications" ${activeTab!=='notifications'?'style="display:none"':''}>
+      ${renderNotificationsTab()}
+    </div>
+  `;
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  render();
+}
+
+function renderMeetingsTab(upcoming, past) {
+  const allUsers = DB.Users.getByCompany(user.companyId);
+  const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
+
+  function meetingCard(m) {
+    const isPast = m.date < DB.today();
+    const attendees = m.attendees.map(id=>userMap[id]).filter(Boolean);
+    return `
+    <div class="card" style="margin-bottom:12px;${isPast?'opacity:.7':''}">
+      <div class="card-body" style="padding:18px 20px">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="width:50px;text-align:center;flex-shrink:0">
+            <div style="background:${isPast?'#F3F4F6':'var(--primary)'};border-radius:10px;padding:8px 4px">
+              <div style="font-size:20px;font-weight:700;color:${isPast?'var(--text-muted)':'#fff'};line-height:1">${new Date(m.date).getDate()}</div>
+              <div style="font-size:10px;color:${isPast?'var(--text-muted)':'rgba(255,255,255,.8)'}">${new Date(m.date).toLocaleDateString('th-TH',{month:'short'})}</div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:600;margin-bottom:6px">${m.title}</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary)">
+              <span>${iconSVG('clock','13')} ${m.startTime}${m.endTime?' - '+m.endTime:''} น.</span>
+              ${m.location?`<span>${iconSVG('map-pin','13')} ${m.location}</span>`:''}
+              ${m.meetingLink?`<a href="${m.meetingLink}" target="_blank" style="color:var(--primary)">${iconSVG('link','13')} เข้าร่วม Online</a>`:''}
+            </div>
+            ${m.description?`<div style="margin-top:8px;font-size:13px;color:var(--text-muted);line-height:1.6">${m.description}</div>`:''}
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+              <div class="avatar-stack">
+                ${attendees.slice(0,5).map(a=>renderAvatar(a,'sm')).join('')}
+                ${attendees.length>5?`<div class="avatar sm" style="background:var(--border);color:var(--text-secondary)">+${attendees.length-5}</div>`:''}
+              </div>
+              <span style="font-size:12px;color:var(--text-muted)">${attendees.length} คน</span>
+              ${(isManager || m.createdBy===user.id)?`<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteMeeting('${m.id}')" style="margin-left:auto">${iconSVG('trash','14')}</button>`:''}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `
+    ${upcoming.length===0&&past.length===0?`
+      <div class="empty-state">
+        <div class="empty-icon">${iconSVG('video','24')}</div>
+        <h4>ยังไม่มีประชุม</h4>
+        <p>สร้างนัดประชุมใหม่เพื่อแจ้งทีม</p>
+        ${isManager?`<button class="btn btn-primary" onclick="openMeeting()">${iconSVG('plus','14')} สร้างประชุม</button>`:''}
+      </div>` :
+    `${upcoming.length>0?`<h5 style="margin-bottom:12px">ที่กำลังจะมาถึง (${upcoming.length})</h5>${upcoming.map(meetingCard).join('')}`:''}`
+    + `${past.length>0?`<h5 style="margin:20px 0 12px">ที่ผ่านมา</h5>${past.slice(0,5).map(meetingCard).join('')}`:''}`}`;
+}
+
+function renderAnnouncementsTab(anns) {
+  const allUsers = DB.Users.getByCompany(user.companyId);
+  const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
+
+  if (!anns.length) return `
+    <div class="empty-state">
+      <div class="empty-icon">${iconSVG('megaphone','24')}</div>
+      <h4>ยังไม่มีประกาศ</h4>
+      <p>ประกาศข้อความสำคัญให้ทีมได้รับรู้</p>
+      ${isManager?`<button class="btn btn-primary" onclick="openAnnouncement()">${iconSVG('plus','14')} สร้างประกาศ</button>`:''}
+    </div>`;
+
+  return anns.map(a=>{
+    const creator = userMap[a.createdBy];
+    return `
+    <div class="announcement-card ${a.pinned?'pinned':''}" style="margin-bottom:12px">
+      <div class="announcement-header ${a.pinned?'pinned':''}">
+        <div>
+          ${a.pinned?`<span style="font-size:11px;color:var(--warning);font-weight:600;display:block;margin-bottom:4px">📌 ประกาศสำคัญ</span>`:''}
+          <div style="font-size:15px;font-weight:600">${a.title}</div>
+        </div>
+        ${(isManager||a.createdBy===user.id)?`
+        <div class="dropdown" id="ann-drop-${a.id}">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleDrop('ann-drop-${a.id}')">${iconSVG('more','15')}</button>
+          <div class="dropdown-menu" id="ann-drop-${a.id}-menu">
+            <button class="dropdown-item" onclick="togglePin('${a.id}','${!a.pinned}')">${a.pinned?'📌 เลิกปักหมุด':'📌 ปักหมุด'}</button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item danger" onclick="deleteAnn('${a.id}')">${iconSVG('trash','13')} ลบประกาศ</button>
+          </div>
+        </div>`:''}
+      </div>
+      <div class="announcement-body">${a.content}</div>
+      <div class="announcement-footer">
+        <span>โดย ${creator?.name||'?'}</span>
+        <span>${timeAgo(a.createdAt)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderNotificationsTab() {
+  const notifs = DB.Notifications.getByUser(user.id);
+  const iconMap = { calendar:iconSVG('calendar','14'), 'map-pin':iconSVG('map-pin','14'), video:iconSVG('video','14'), megaphone:iconSVG('megaphone','14'), bell:iconSVG('bell','14'), clock:iconSVG('clock','14') };
+  DB.Notifications.markAllRead(user.id);
+  updateNotifBadge();
+
+  if (!notifs.length) return `
+    <div class="empty-state">
+      <div class="empty-icon">${iconSVG('bell','24')}</div>
+      <h4>ไม่มีการแจ้งเตือน</h4>
+    </div>`;
+
+  return `
+  <div class="card">
+    ${notifs.map(n=>`
+    <div style="display:flex;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border-light);align-items:flex-start">
+      <div style="width:36px;height:36px;border-radius:10px;background:${n.color}22;color:${n.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">${iconMap[n.icon]||iconSVG('bell','14')}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13.5px;font-weight:500">${n.title}</div>
+        ${n.body?`<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${n.body}</div>`:''}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${timeAgo(n.createdAt)}</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function openMeeting(id) {
+  const allUsers = DB.Users.getByCompany(user.companyId).filter(u=>u.status==='active');
+  document.getElementById('meeting-modal-title').textContent = 'สร้างนัดประชุม';
+  document.getElementById('m-date').value = DB.today();
+  const list = document.getElementById('attendees-list');
+  list.innerHTML = allUsers.map(u=>`
+    <div class="checkbox-wrap" style="padding:5px 8px">
+      <input type="checkbox" id="att-${u.id}" name="attendees" value="${u.id}" ${u.id===user.id?'checked':''}>
+      <label for="att-${u.id}" style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+        ${renderAvatar(u,'sm')} ${u.name} <span style="color:var(--text-muted);font-size:11px">${u.department||''}</span>
+      </label>
+    </div>`).join('');
+  Modal.open('modal-meeting');
+}
+
+function selectAll() {
+  document.querySelectorAll('#attendees-list input[type=checkbox]').forEach(cb=>cb.checked=true);
+}
+function clearAll() {
+  document.querySelectorAll('#attendees-list input[type=checkbox]').forEach(cb=>cb.checked=false);
+}
+
+function saveMeeting() {
+  const title    = document.getElementById('m-title').value.trim();
+  const date     = document.getElementById('m-date').value;
+  const startTime= document.getElementById('m-start').value;
+  if (!title || !date || !startTime) return Toast.error('กรุณากรอกชื่อประชุม วันที่ และเวลาเริ่ม');
+  const attendees = [...document.querySelectorAll('#attendees-list input:checked')].map(cb=>cb.value);
+  if (!attendees.length) return Toast.error('เลือกผู้เข้าร่วมอย่างน้อย 1 คน');
+  DB.Meetings.create({
+    companyId: user.companyId, title, date, startTime,
+    endTime:   document.getElementById('m-end').value,
+    location:  document.getElementById('m-location').value.trim(),
+    meetingLink: document.getElementById('m-link').value.trim(),
+    description: document.getElementById('m-desc').value.trim(),
+    attendees, createdBy: user.id
+  });
+  Modal.close('modal-meeting');
+  Toast.success('สร้างนัดประชุมและแจ้งเตือนผู้เข้าร่วมแล้ว');
+  clearMeetingForm();
+  render();
+}
+
+function clearMeetingForm() {
+  ['m-title','m-location','m-link','m-desc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+}
+
+function deleteMeeting(id) {
+  confirmDialog('ต้องการลบนัดประชุมนี้?', ()=>{ DB.Meetings.delete(id); Toast.success('ลบประชุมแล้ว'); render(); });
+}
+
+function openAnnouncement() {
+  document.getElementById('ann-title').value = '';
+  document.getElementById('ann-content').value = '';
+  document.getElementById('ann-pin').checked = false;
+  Modal.open('modal-ann');
+}
+
+function saveAnnouncement() {
+  const title   = document.getElementById('ann-title').value.trim();
+  const content = document.getElementById('ann-content').value.trim();
+  if (!title || !content) return Toast.error('กรุณากรอกหัวข้อและเนื้อหา');
+  DB.Announcements.create({ companyId: user.companyId, title, content, pinned: document.getElementById('ann-pin').checked, audience: document.getElementById('ann-audience').value, createdBy: user.id });
+  Modal.close('modal-ann');
+  Toast.success('เผยแพร่ประกาศแล้ว');
+  activeTab = 'announcements';
+  render();
+}
+
+function togglePin(id, pinned) {
+  DB.Announcements.update(id, { pinned: pinned === 'true' });
+  closeDrop(); render();
+}
+
+function deleteAnn(id) {
+  confirmDialog('ต้องการลบประกาศนี้?', ()=>{ DB.Announcements.delete(id); Toast.success('ลบประกาศแล้ว'); render(); });
+}
+
+function toggleDrop(dropId) {
+  const menu = document.getElementById(dropId+'-menu');
+  document.querySelectorAll('.dropdown-menu.open').forEach(m=>{ if(m!==menu) m.classList.remove('open'); });
+  menu?.classList.toggle('open');
+}
+function closeDrop() { document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open')); }
+document.addEventListener('click', e=>{ if(!e.target.closest('.dropdown')) closeDrop(); });
+</script>
+</body>
+</html>

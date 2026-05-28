@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>โปรไฟล์ — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Hidden canvas for avatar resize -->
+<canvas id="avatar-canvas" style="display:none"></canvas>
+<input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="handleAvatarUpload(this)">
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('profile', 'โปรไฟล์ของฉัน');
+if (user) render();
+
+function render() {
+  const u       = DB.Users.get(user.id) || user;
+  const company = DB.Companies.get(user.companyId);
+  const today   = DB.today();
+  const monthStr = today.slice(0, 7);
+
+  // Stats
+  const myAtt    = DB.Attendance.getByCompany(user.companyId, { month: monthStr }).filter(a => a.userId === user.id);
+  const myLeaves = DB.Leaves.getByCompany(user.companyId, { month: monthStr }).filter(l => l.userId === user.id);
+  const lateCount = myAtt.filter(a => a.status === 'late').length;
+  const leaveApproved = myLeaves.filter(l => l.status === 'approved').reduce((s, l) => s + l.days, 0);
+
+  // Leave balances
+  const leaveTypes = DB.LeaveTypes.getByCompany(user.companyId);
+  const allLeaves  = DB.Leaves.getByCompany(user.companyId, { status: 'approved' }).filter(l => l.userId === user.id);
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div style="max-width:700px;margin:0 auto">
+
+      <!-- Profile Card -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-body" style="padding:28px">
+          <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+            <!-- Avatar -->
+            <div style="position:relative;flex-shrink:0">
+              <div id="avatar-display" style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--primary);cursor:pointer" onclick="document.getElementById('avatar-file').click()" title="คลิกเพื่อเปลี่ยนรูป">
+                ${u.avatar
+                  ? `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover">`
+                  : getInitials(u.name)}
+              </div>
+              <div style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid white" onclick="document.getElementById('avatar-file').click()">
+                ${iconSVG('camera','11')}
+              </div>
+            </div>
+
+            <!-- Name & Info -->
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:20px;font-weight:700;margin-bottom:4px">${u.name}</div>
+              <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">${u.department||''} ${u.position ? '· ' + u.position : ''}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                ${roleBadge(u.role)}
+                <span style="font-size:12px;padding:3px 8px;background:var(--bg-secondary);border-radius:99px;color:var(--text-muted)">${company?.name||''}</span>
+              </div>
+            </div>
+
+            <!-- Login Credentials -->
+            <div style="background:var(--bg-secondary);border-radius:10px;padding:14px 18px;min-width:200px">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">ข้อมูล Login</div>
+              <div style="margin-bottom:6px">
+                <div style="font-size:11px;color:var(--text-muted)">รหัสบริษัท</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:14px;font-weight:700;font-family:monospace">${company?.code||'—'}</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px" onclick="copyText('${company?.code||''}')">คัดลอก</button>
+                </div>
+              </div>
+              ${u.employeeCode ? `
+              <div>
+                <div style="font-size:11px;color:var(--text-muted)">รหัสพนักงาน</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:14px;font-weight:700;font-family:monospace">${u.employeeCode}</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px" onclick="copyText('${u.employeeCode}')">คัดลอก</button>
+                </div>
+              </div>` : `
+              <div>
+                <div style="font-size:11px;color:var(--text-muted)">อีเมล (Admin)</div>
+                <div style="font-size:13px;font-weight:600">${u.email||'—'}</div>
+              </div>`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats this month -->
+      <div class="grid grid-3" style="margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#ECFDF5;color:#10B981">${iconSVG('check-circle','18')}</div>
+          <div class="stat-value">${myAtt.length}</div>
+          <div class="stat-label">วันมาทำงานเดือนนี้</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FFFBEB;color:#F59E0B">${iconSVG('clock','18')}</div>
+          <div class="stat-value">${lateCount}</div>
+          <div class="stat-label">ครั้งสายเดือนนี้</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5">${iconSVG('calendar','18')}</div>
+          <div class="stat-value">${leaveApproved}</div>
+          <div class="stat-label">วันลาเดือนนี้</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs" style="margin-bottom:20px">
+        <button class="tab-btn active" onclick="showTab('edit',this)">แก้ไขข้อมูล</button>
+        <button class="tab-btn" onclick="showTab('password',this)">เปลี่ยนรหัสผ่าน</button>
+        <button class="tab-btn" onclick="showTab('leave-balance',this)">วันลาคงเหลือ</button>
+      </div>
+
+      <!-- Edit Profile Tab -->
+      <div id="tab-edit">
+        <div class="card">
+          <div class="card-header"><span class="card-title">ข้อมูลส่วนตัว</span></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">ชื่อ-นามสกุล <span class="text-danger">*</span></label>
+              <input type="text" id="edit-name" class="form-input" value="${u.name||''}">
+            </div>
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label class="form-label">เบอร์โทรศัพท์</label>
+                <input type="tel" id="edit-phone" class="form-input" value="${u.phone||''}" placeholder="08x-xxx-xxxx">
+              </div>
+              <div class="form-group">
+                <label class="form-label">ตำแหน่ง</label>
+                <input type="text" id="edit-position" class="form-input" value="${u.position||''}" placeholder="เช่น พนักงานต้อนรับ" ${u.role === 'employee' ? '' : ''}>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">อีเมล</label>
+              <input type="email" id="edit-email" class="form-input" value="${u.email||''}" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ไลน์ ID</label>
+              <input type="text" id="edit-line" class="form-input" value="${u.lineId||''}" placeholder="@yourlineid">
+            </div>
+            <button class="btn btn-primary" onclick="saveProfile()">บันทึกข้อมูล</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password Tab -->
+      <div id="tab-password" style="display:none">
+        <div class="card">
+          <div class="card-header"><span class="card-title">เปลี่ยนรหัสผ่าน</span></div>
+          <div class="card-body">
+            ${u.employeeCode ? `
+            <div style="background:var(--bg-secondary);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-secondary)">
+              พนักงานใช้รหัสพนักงาน (${u.employeeCode}) ในการ login — ไม่มีรหัสผ่านแยก<br>
+              รหัสพนักงานเปลี่ยนได้โดย HR / Admin เท่านั้น
+            </div>` : `
+            <div class="form-group">
+              <label class="form-label">รหัสผ่านปัจจุบัน <span class="text-danger">*</span></label>
+              <input type="password" id="pw-current" class="form-input" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label class="form-label">รหัสผ่านใหม่ <span class="text-danger">*</span></label>
+              <input type="password" id="pw-new" class="form-input" placeholder="อย่างน้อย 6 ตัวอักษร">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ยืนยันรหัสผ่านใหม่ <span class="text-danger">*</span></label>
+              <input type="password" id="pw-confirm" class="form-input" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary" onclick="changePassword()">เปลี่ยนรหัสผ่าน</button>`}
+          </div>
+        </div>
+      </div>
+
+      <!-- Leave Balance Tab -->
+      <div id="tab-leave-balance" style="display:none">
+        <div class="card">
+          <div class="card-header"><span class="card-title">วันลาคงเหลือปีนี้</span></div>
+          <div class="card-body">
+            ${leaveTypes.length === 0
+              ? '<div style="text-align:center;padding:32px;font-size:13px;color:var(--text-muted)">ยังไม่มีประเภทการลา</div>'
+              : leaveTypes.map(t => {
+                  const used = allLeaves.filter(l => l.leaveTypeId === t.id).reduce((s, l) => s + l.days, 0);
+                  const total = t.maxDays || 0;
+                  const left  = total ? Math.max(0, total - used) : null;
+                  const pct   = total ? Math.min(100, Math.round(used / total * 100)) : 0;
+                  return `
+                  <div style="margin-bottom:20px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${t.color};display:inline-block"></span>
+                        <span style="font-size:14px;font-weight:500">${t.name}</span>
+                      </div>
+                      <span style="font-size:13px;color:var(--text-muted)">
+                        ${total ? `ใช้ไป ${used} / ${total} วัน · <strong style="color:var(--text-primary)">${left} วันคงเหลือ</strong>` : `ใช้ไป ${used} วัน · ไม่จำกัด`}
+                      </span>
+                    </div>
+                    ${total ? `
+                    <div style="height:8px;background:var(--border-light);border-radius:99px;overflow:hidden">
+                      <div style="height:100%;width:${pct}%;background:${t.color};border-radius:99px;transition:width .3s"></div>
+                    </div>` : ''}
+                  </div>`;
+                }).join('')}
+          </div>
+        </div>
+
+        <!-- Recent Leave History -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-header"><span class="card-title">ประวัติการลาล่าสุด</span></div>
+          ${renderRecentLeaves(allLeaves, leaveTypes)}
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border-light)">
+        <button class="btn btn-danger" onclick="logout()" style="width:100%">
+          ${iconSVG('log-out','14')} ออกจากระบบ
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+function renderRecentLeaves(leaves, types) {
+  const typeMap = Object.fromEntries(types.map(t => [t.id, t]));
+  const recent  = [...leaves].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 8);
+  if (!recent.length) return '<div style="text-align:center;padding:32px;font-size:13px;color:var(--text-muted)">ยังไม่มีประวัติการลา</div>';
+  return `<div class="card-body" style="padding:0">` + recent.map(l => {
+    const t = typeMap[l.leaveTypeId] || {};
+    return `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border-light)">
+      <span style="width:8px;height:8px;border-radius:50%;background:${t.color||'var(--border)'};flex-shrink:0"></span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${t.name||'—'}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${formatDate(l.startDate)}${l.startDate !== l.endDate ? ' – ' + formatDate(l.endDate) : ''} · ${l.days} วัน</div>
+      </div>
+      ${leaveStatusBadge(l.status)}
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = '';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function roleBadge(role) {
+  const map = { admin: ['#EF4444','#FEF2F2','Admin'], hr: ['#8B5CF6','#EDE9FE','HR'], manager: ['#F59E0B','#FFFBEB','Manager'], employee: ['#64748B','#F1F5F9','พนักงาน'] };
+  const [color, bg, label] = map[role] || map.employee;
+  return `<span style="font-size:12px;padding:3px 8px;background:${bg};color:${color};border-radius:99px;font-weight:600">${label}</span>`;
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(' ');
+  return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
+}
+
+// ── SAVE PROFILE ──────────────────────────────────────────────────────────────
+function saveProfile() {
+  const name     = document.getElementById('edit-name').value.trim();
+  const phone    = document.getElementById('edit-phone').value.trim();
+  const position = document.getElementById('edit-position').value.trim();
+  const email    = document.getElementById('edit-email').value.trim();
+  const lineId   = document.getElementById('edit-line').value.trim();
+
+  if (!name) { Toast.error('กรุณาใส่ชื่อ-นามสกุล'); return; }
+
+  DB.Users.update(user.id, { name, phone, position, email, lineId });
+
+  const session = DB.Session.get();
+  if (session) { session.name = name; DB.Session.set(session); }
+
+  Toast.success('บันทึกข้อมูลแล้ว');
+  setTimeout(() => render(), 400);
+}
+
+// ── CHANGE PASSWORD ───────────────────────────────────────────────────────────
+function changePassword() {
+  const current = document.getElementById('pw-current').value;
+  const newPw   = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+
+  if (!current || !newPw || !confirm) { Toast.error('กรุณากรอกให้ครบ'); return; }
+  if (newPw.length < 6) { Toast.error('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
+  if (newPw !== confirm) { Toast.error('รหัสผ่านใหม่ไม่ตรงกัน'); return; }
+
+  const u = DB.Users.get(user.id);
+  if (!u) { Toast.error('ไม่พบข้อมูลผู้ใช้'); return; }
+  if (u.password !== current) { Toast.error('รหัสผ่านปัจจุบันไม่ถูกต้อง'); return; }
+
+  DB.Users.update(user.id, { password: newPw });
+
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value     = '';
+  document.getElementById('pw-confirm').value = '';
+  Toast.success('เปลี่ยนรหัสผ่านแล้ว');
+}
+
+// ── AVATAR UPLOAD ─────────────────────────────────────────────────────────────
+function handleAvatarUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { Toast.error('กรุณาเลือกไฟล์รูปภาพ'); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      // Resize to 200×200
+      const canvas  = document.getElementById('avatar-canvas');
+      const size    = 200;
+      canvas.width  = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      // Center-crop
+      const min   = Math.min(img.width, img.height);
+      const sx    = (img.width  - min) / 2;
+      const sy    = (img.height - min) / 2;
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+      DB.Users.update(user.id, { avatar: dataUrl });
+
+      // Update avatar display immediately
+      const disp = document.getElementById('avatar-display');
+      if (disp) disp.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover">`;
+
+      Toast.success('อัปโหลดรูปโปรไฟล์แล้ว');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+// ── LOGOUT ────────────────────────────────────────────────────────────────────
+function logout() {
+  confirmDialog('ออกจากระบบ?', () => {
+    Auth.logout();
+  }, false);
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function copyText(text) {
+  navigator.clipboard?.writeText(text).then(() => Toast.success('คัดลอกแล้ว')).catch(() => Toast.error('ไม่สามารถคัดลอกได้'));
+}
+</script>
+</body>
+</html>
