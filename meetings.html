@@ -6,6 +6,393 @@
 <title>ประชุม & ประกาศ — Orbit HR</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<style>
+#main {
+  --m-bg: #07070F;
+  --m-card: rgba(255,255,255,.04);
+  --m-card-hover: rgba(255,255,255,.07);
+  --m-border: rgba(255,255,255,.08);
+  --m-border-bright: rgba(255,255,255,.15);
+  --m-text: #EEEEFF;
+  --m-text-2: rgba(238,238,255,.65);
+  --m-text-3: rgba(238,238,255,.35);
+  --m-accent: #6366F1;
+  --m-green: #10B981;
+  --m-orange: #F59E0B;
+  --m-blue: #3B82F6;
+  --m-purple: #A78BFA;
+  --m-red: #F87171;
+  background: var(--m-bg);
+  color: var(--m-text);
+  padding-bottom: 110px;
+}
+
+/* ── AI Banner ── */
+.m-ai-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg,rgba(99,102,241,.12),rgba(167,139,250,.06));
+  border: 1px solid rgba(99,102,241,.28);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  animation: m-fade-up .4s .05s both;
+}
+.m-ai-banner::after {
+  content:'';position:absolute;top:0;right:0;width:180px;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(99,102,241,.04));
+  pointer-events:none;
+}
+.m-ai-orb {
+  position:relative;width:44px;height:44px;flex-shrink:0;
+}
+.m-orb-core {
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:16px;height:16px;border-radius:50%;
+  background:radial-gradient(circle,#818CF8,#6366F1);
+  box-shadow:0 0 14px 4px rgba(99,102,241,.65);
+}
+.m-orb-ring {
+  position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(99,102,241,.4);
+  animation:m-orb-pulse 2s ease-in-out infinite;
+}
+.m-orb-ring-2 { inset:-7px;border-color:rgba(99,102,241,.18);animation-delay:.65s; }
+@keyframes m-orb-pulse {
+  0%,100%{transform:scale(1);opacity:1}
+  50%{transform:scale(1.18);opacity:.45}
+}
+.m-ai-label {
+  font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--m-accent);margin-bottom:9px;
+}
+.m-chips { display:flex;flex-wrap:wrap;gap:7px; }
+.m-chip {
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;
+  color:var(--m-text-2);background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;
+}
+.m-chip-dot { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+
+/* ── Analytics Row ── */
+.m-analytics {
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  margin-bottom:20px;animation:m-fade-up .4s .1s both;
+}
+@media(max-width:500px){.m-analytics{grid-template-columns:1fr 1fr}}
+.m-analytics-card {
+  background:var(--m-card);border:1px solid var(--m-border);
+  border-radius:12px;padding:14px 16px;
+}
+.m-analytics-num {
+  font-size:22px;font-weight:700;color:var(--m-text);line-height:1;margin-bottom:4px;
+}
+.m-analytics-unit { font-size:13px;font-weight:400;color:var(--m-text-3); }
+.m-analytics-lbl { font-size:11px;color:var(--m-text-3); }
+
+/* ── Tabs ── */
+.m-tabs {
+  display:flex;gap:3px;
+  background:rgba(255,255,255,.04);border:1px solid var(--m-border);
+  border-radius:12px;padding:4px;margin-bottom:22px;width:fit-content;
+  animation:m-fade-up .4s .15s both;
+}
+.m-tab {
+  display:flex;align-items:center;gap:6px;
+  padding:8px 15px;border-radius:8px;
+  font-size:13px;font-weight:500;color:var(--m-text-2);
+  background:transparent;border:none;cursor:pointer;
+  transition:all .18s;
+}
+.m-tab:hover{color:var(--m-text);background:rgba(255,255,255,.05);}
+.m-tab.active{background:var(--m-accent);color:#fff;}
+.m-tab-count {
+  background:rgba(255,255,255,.22);border-radius:10px;
+  padding:1px 6px;font-size:11px;font-weight:600;
+}
+.m-tab.active .m-tab-count{background:rgba(255,255,255,.28);}
+
+/* ── Meetings Tab Layout ── */
+.m-content-wrap {
+  display:grid;grid-template-columns:1fr 268px;gap:18px;align-items:start;
+  animation:m-fade-up .4s .2s both;
+}
+@media(max-width:900px){.m-content-wrap{grid-template-columns:1fr}}
+@media(max-width:900px){.m-sidebar{display:none}}
+
+/* ── View Header ── */
+.m-view-header {
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;
+}
+.m-view-title {font-size:13px;font-weight:600;color:var(--m-text-2);}
+.m-view-controls {display:flex;align-items:center;gap:6px;}
+.m-icon-btn {
+  width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:var(--m-card);border:1px solid var(--m-border);
+  color:var(--m-text-2);cursor:pointer;font-size:14px;
+  transition:all .15s;
+}
+.m-icon-btn:hover{background:var(--m-card-hover);color:var(--m-text);border-color:var(--m-border-bright);}
+.m-today-btn {
+  padding:0 10px;width:auto;font-size:11px;font-weight:600;
+}
+.m-toggle {
+  display:flex;background:rgba(255,255,255,.04);border:1px solid var(--m-border);
+  border-radius:8px;padding:2px;gap:2px;
+}
+.m-toggle-btn {
+  padding:4px 11px;border-radius:6px;font-size:12px;font-weight:500;
+  color:var(--m-text-2);background:transparent;border:none;cursor:pointer;transition:all .15s;
+}
+.m-toggle-btn.active{background:var(--m-accent);color:#fff;}
+
+/* ── Week Grid ── */
+.m-week-grid {
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:18px;
+}
+@media(max-width:640px){
+  .m-week-grid{grid-template-columns:repeat(4,1fr)}
+  .m-week-col:nth-child(n+5):not(.m-week-today){display:none}
+}
+.m-week-col {
+  background:var(--m-card);border:1px solid var(--m-border);
+  border-radius:12px;padding:10px 7px;min-height:90px;
+}
+.m-week-today {
+  border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.07);
+}
+.m-week-day-hdr { text-align:center;margin-bottom:8px; }
+.m-week-day-name {
+  display:block;font-size:9.5px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--m-text-3);margin-bottom:4px;
+}
+.m-week-day-num {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:50%;font-size:13px;font-weight:600;color:var(--m-text-2);
+}
+.m-week-today .m-week-day-num {background:var(--m-accent);color:#fff;}
+.m-week-events {display:flex;flex-direction:column;gap:4px;}
+.m-evt {
+  padding:4px 6px;border-radius:6px;font-size:10px;font-weight:500;line-height:1.3;
+  border-left:2px solid transparent;cursor:default;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.m-evt-live   {background:rgba(16,185,129,.15);border-left-color:var(--m-green);color:#6EFFD5;}
+.m-evt-soon   {background:rgba(245,158,11,.12);border-left-color:var(--m-orange);color:#FDE68A;}
+.m-evt-upcoming{background:rgba(99,102,241,.12);border-left-color:var(--m-accent);color:#C4B5FD;}
+.m-evt-past   {background:rgba(255,255,255,.04);border-left-color:rgba(255,255,255,.12);color:var(--m-text-3);}
+
+/* ── Status Badge ── */
+.m-badge {
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:600;flex-shrink:0;
+}
+.m-badge-live  {background:rgba(16,185,129,.14);color:#34D399;border:1px solid rgba(16,185,129,.22);}
+.m-badge-soon  {background:rgba(245,158,11,.12);color:#FCD34D;border:1px solid rgba(245,158,11,.2);}
+.m-badge-upcoming{background:rgba(99,102,241,.12);color:#A5B4FC;border:1px solid rgba(99,102,241,.2);}
+.m-badge-past  {background:rgba(255,255,255,.05);color:var(--m-text-3);border:1px solid rgba(255,255,255,.08);}
+.m-live-dot {
+  width:6px;height:6px;border-radius:50%;background:var(--m-green);flex-shrink:0;
+  animation:m-blink 1.2s ease-in-out infinite;
+}
+@keyframes m-blink {
+  0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.5)}
+  50%{opacity:.7;box-shadow:0 0 0 4px rgba(16,185,129,0)}
+}
+
+/* ── Section Label ── */
+.m-section-lbl {
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--m-text-3);margin:18px 0 10px;
+}
+.m-section-lbl:first-child{margin-top:0;}
+
+/* ── Meeting Card ── */
+.m-card {
+  background:var(--m-card);border:1px solid var(--m-border);
+  border-radius:14px;padding:15px 17px;margin-bottom:9px;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.m-card:hover{background:var(--m-card-hover);border-color:var(--m-border-bright);transform:translateY(-1px);}
+.m-card-live{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.04);}
+.m-card-live::before{
+  content:'';position:absolute;top:0;left:0;
+  width:3px;height:100%;background:var(--m-green);
+}
+.m-card-top{display:flex;gap:13px;align-items:flex-start;margin-bottom:9px;}
+.m-date-pill {
+  width:42px;text-align:center;flex-shrink:0;
+  background:rgba(255,255,255,.05);border:1px solid var(--m-border);
+  border-radius:10px;padding:7px 4px;
+}
+.m-date-day {font-size:19px;font-weight:700;color:var(--m-text);line-height:1;}
+.m-date-mon {font-size:9.5px;color:var(--m-text-3);margin-top:2px;}
+.m-card-title-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+.m-card-title{font-size:14px;font-weight:600;color:var(--m-text);}
+.m-card-meta{display:flex;flex-wrap:wrap;gap:11px;font-size:12px;color:var(--m-text-2);}
+.m-card-meta span{display:flex;align-items:center;gap:4px;}
+.m-card-meta a{color:var(--m-blue);text-decoration:none;display:flex;align-items:center;gap:4px;}
+.m-card-meta a:hover{color:#93C5FD;}
+.m-card-desc {
+  font-size:12px;color:var(--m-text-3);line-height:1.6;
+  margin-top:9px;padding:8px 10px;
+  background:rgba(255,255,255,.03);border-left:2px solid rgba(255,255,255,.08);border-radius:0 8px 8px 0;
+}
+.m-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:11px;}
+.m-att-stack{display:flex;align-items:center;}
+.m-att-stack .avatar{margin-left:-5px;border:2px solid #07070F;}
+.m-att-stack .avatar:first-child{margin-left:0;}
+.m-att-count{font-size:11px;color:var(--m-text-3);margin-left:7px;}
+.m-del-btn {
+  width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.12);
+  color:var(--m-red);cursor:pointer;transition:all .15s;opacity:0;
+}
+.m-card:hover .m-del-btn{opacity:1;}
+@media(hover:none){.m-del-btn{opacity:.7;}}
+
+/* ── Empty ── */
+.m-empty {
+  text-align:center;padding:40px 20px;color:var(--m-text-3);
+}
+.m-empty-icon {
+  width:46px;height:46px;border-radius:14px;
+  background:rgba(255,255,255,.04);border:1px solid var(--m-border);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;color:var(--m-text-3);
+}
+.m-empty h4{font-size:14px;font-weight:600;color:var(--m-text-2);margin-bottom:5px;}
+.m-empty p{font-size:12px;}
+
+/* ── Right Sidebar ── */
+.m-sidebar {
+  display:flex;flex-direction:column;gap:12px;position:sticky;top:20px;
+}
+.m-sb-card {
+  background:var(--m-card);border:1px solid var(--m-border);border-radius:14px;padding:16px;
+}
+.m-sb-title {
+  font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--m-text-3);margin-bottom:14px;
+}
+.m-cdown-lbl{font-size:12px;color:var(--m-text-2);margin-bottom:3px;}
+.m-cdown-name{font-size:13px;font-weight:600;color:var(--m-text);margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.m-cdown-timer{font-size:28px;font-weight:700;color:var(--m-accent);font-variant-numeric:tabular-nums;line-height:1;}
+.m-cdown-sub{font-size:11px;color:var(--m-text-3);margin-top:4px;}
+.m-live-banner {
+  display:flex;align-items:center;gap:7px;
+  margin-top:11px;padding:8px 11px;
+  background:rgba(16,185,129,.09);border:1px solid rgba(16,185,129,.18);
+  border-radius:9px;font-size:11.5px;color:#4ADE80;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.m-stat-rows{display:flex;flex-direction:column;gap:10px;}
+.m-stat-row{display:flex;align-items:center;justify-content:space-between;}
+.m-stat-lbl{font-size:12px;color:var(--m-text-2);}
+.m-stat-val{font-size:14px;font-weight:700;color:var(--m-text);}
+.m-mini-meeting{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.m-mini-meeting:last-child{margin-bottom:0;}
+.m-mini-day {
+  width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);
+  font-size:13px;font-weight:700;color:var(--m-accent);flex-shrink:0;
+}
+.m-mini-title{font-size:12px;font-weight:600;color:var(--m-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.m-mini-time{font-size:11px;color:var(--m-text-3);}
+
+/* ── Announcements ── */
+.m-ann {
+  background:var(--m-card);border:1px solid var(--m-border);
+  border-radius:14px;margin-bottom:10px;overflow:hidden;transition:border-color .2s;
+}
+.m-ann-pinned{border-color:rgba(245,158,11,.28);background:rgba(245,158,11,.03);}
+.m-ann-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 10px;}
+.m-ann-pin-lbl{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--m-orange);display:block;margin-bottom:4px;}
+.m-ann-title{font-size:14px;font-weight:600;color:var(--m-text);}
+.m-ann-body{padding:0 16px 12px;font-size:13px;color:var(--m-text-2);line-height:1.65;}
+.m-ann-footer{padding:9px 16px;border-top:1px solid var(--m-border);display:flex;justify-content:space-between;font-size:11px;color:var(--m-text-3);}
+.m-ann-menu-wrap{position:relative;}
+.m-ann-menu-btn {
+  width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid transparent;color:var(--m-text-3);cursor:pointer;transition:all .15s;
+}
+.m-ann-menu-btn:hover{background:rgba(255,255,255,.08);border-color:var(--m-border);color:var(--m-text);}
+.m-ann-menu {
+  position:absolute;top:calc(100% + 4px);right:0;
+  background:#13131E;border:1px solid var(--m-border-bright);border-radius:10px;
+  padding:4px;min-width:152px;z-index:200;
+  box-shadow:0 10px 28px rgba(0,0,0,.55);display:none;
+}
+.m-ann-menu.open{display:block;}
+.m-ann-mitem {
+  display:flex;align-items:center;gap:7px;width:100%;
+  padding:7px 10px;border-radius:7px;font-size:13px;color:var(--m-text-2);
+  background:transparent;border:none;cursor:pointer;text-align:left;transition:all .12s;
+}
+.m-ann-mitem:hover{background:rgba(255,255,255,.07);color:var(--m-text);}
+.m-ann-mitem.danger{color:var(--m-red);}
+.m-ann-mitem.danger:hover{background:rgba(248,113,113,.1);}
+.m-ann-divider{height:1px;background:var(--m-border);margin:3px 0;}
+
+/* ── Notifications ── */
+.m-notifs-wrap{background:var(--m-card);border:1px solid var(--m-border);border-radius:14px;overflow:hidden;}
+.m-notif {
+  display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--m-border);
+  align-items:flex-start;transition:background .15s;
+}
+.m-notif:last-child{border-bottom:none;}
+.m-notif:hover{background:rgba(255,255,255,.03);}
+.m-notif-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.m-notif-title{font-size:13px;font-weight:500;color:var(--m-text);}
+.m-notif-body{font-size:12px;color:var(--m-text-2);margin-top:2px;}
+.m-notif-time{font-size:11px;color:var(--m-text-3);margin-top:3px;}
+
+/* ── FAB ── */
+.m-fab-wrap {
+  position:fixed;bottom:76px;right:22px;z-index:400;
+  display:flex;flex-direction:column-reverse;align-items:flex-end;gap:10px;
+}
+@media(min-width:769px){.m-fab-wrap{bottom:30px;}}
+.m-fab-btn {
+  width:52px;height:52px;border-radius:16px;background:var(--m-accent);border:none;
+  display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;
+  box-shadow:0 4px 22px rgba(99,102,241,.52);
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;
+}
+.m-fab-btn:hover{transform:scale(1.08);box-shadow:0 6px 30px rgba(99,102,241,.65);}
+.m-fab-btn svg{transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.m-fab-wrap.open .m-fab-btn svg{transform:rotate(45deg);}
+.m-fab-opts {
+  display:flex;flex-direction:column;gap:8px;
+  opacity:0;pointer-events:none;
+  transform:translateY(10px) scale(.95);
+  transition:all .22s cubic-bezier(.34,1.56,.64,1);
+}
+.m-fab-wrap.open .m-fab-opts{opacity:1;pointer-events:all;transform:translateY(0) scale(1);}
+.m-fab-opt{display:flex;align-items:center;gap:10px;cursor:pointer;justify-content:flex-end;}
+.m-fab-opt-lbl {
+  font-size:12px;font-weight:600;color:#fff;
+  background:rgba(18,18,28,.92);border:1px solid var(--m-border-bright);
+  padding:5px 13px;border-radius:20px;backdrop-filter:blur(8px);white-space:nowrap;
+}
+.m-fab-opt-icon {
+  width:38px;height:38px;border-radius:12px;background:var(--m-card-hover);
+  border:1px solid var(--m-border-bright);display:flex;align-items:center;justify-content:center;
+  color:var(--m-text);flex-shrink:0;transition:background .15s,color .15s;
+}
+.m-fab-opt:hover .m-fab-opt-icon{background:var(--m-accent);color:#fff;}
+
+/* ── Entrance animation ── */
+@keyframes m-fade-up {
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+</style>
 </head>
 <body>
 <div class="app-layout">
@@ -113,138 +500,403 @@
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script>
-const user = initPage('meetings', 'ประชุม & ประกาศ');
+const user      = initPage('meetings', 'ประชุม & ประกาศ');
 const isManager = Auth.canApproveLeave(user);
-let activeTab = 'meetings';
 
-if (user) render();
+let activeTab        = 'meetings';
+let activeView       = 'week';
+let currentWeekStart = null;
+let cdownInterval    = null;
 
-function getHeaderActions() {
-  return isManager ? `
-    <button class="btn btn-secondary" onclick="openAnnouncement()">${iconSVG('megaphone','15')} ประกาศ</button>
-    <button class="btn btn-primary" onclick="openMeeting()">${iconSVG('plus','15')} นัดประชุม</button>
-  ` : '';
-}
+const thaiMon  = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const thaiDay  = ['จ','อ','พ','พฤ','ศ','ส','อา'];
 
-function render() {
-  const today    = DB.today();
-  const meetings = DB.Meetings.getForUser(user.id);
-  const upcoming = meetings.filter(m => m.date >= today);
-  const past     = meetings.filter(m => m.date < today);
-  const anns     = DB.Announcements.getByCompany(user.companyId);
-
-  // Re-render header with actions
-  buildHeader('ประชุม & ประกาศ', getHeaderActions());
-
-  const main = document.getElementById('main');
-  main.innerHTML = `
-    <div class="tabs" style="margin-bottom:20px">
-      <button class="tab-item ${activeTab==='meetings'?'active':''}" onclick="switchTab('meetings')">ประชุม <span class="badge badge-primary" style="margin-left:4px">${upcoming.length}</span></button>
-      <button class="tab-item ${activeTab==='announcements'?'active':''}" onclick="switchTab('announcements')">ประกาศ <span class="badge badge-warning" style="margin-left:4px">${anns.length}</span></button>
-      <button class="tab-item ${activeTab==='notifications'?'active':''}" onclick="switchTab('notifications')">การแจ้งเตือน</button>
-    </div>
-
-    <div id="tab-meetings" ${activeTab!=='meetings'?'style="display:none"':''}>
-      ${renderMeetingsTab(upcoming, past)}
-    </div>
-    <div id="tab-announcements" ${activeTab!=='announcements'?'style="display:none"':''}>
-      ${renderAnnouncementsTab(anns)}
-    </div>
-    <div id="tab-notifications" ${activeTab!=='notifications'?'style="display:none"':''}>
-      ${renderNotificationsTab()}
-    </div>
-  `;
-}
-
-function switchTab(tab) {
-  activeTab = tab;
+if (user) {
+  currentWeekStart = getMonday(DB.today());
   render();
 }
 
-function renderMeetingsTab(upcoming, past) {
+/* ───── Date Helpers ───── */
+
+function localDateStr(d) {
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function getMonday(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return localDateStr(d);
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return localDateStr(d);
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getDate()} ${thaiMon[d.getMonth()]}`;
+}
+
+function weekLabel() {
+  const s = new Date(currentWeekStart + 'T00:00:00');
+  const e = new Date(addDays(currentWeekStart, 6) + 'T00:00:00');
+  return `${s.getDate()} ${thaiMon[s.getMonth()]} – ${e.getDate()} ${thaiMon[e.getMonth()]} ${s.getFullYear() + 543}`;
+}
+
+/* ───── Meeting Status ───── */
+
+function meetingStatus(m) {
+  const today = DB.today();
+  if (m.date > today) return 'upcoming';
+  if (m.date < today) return 'past';
+  const now    = new Date();
+  const nowStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  if (m.startTime && m.endTime && nowStr >= m.startTime && nowStr <= m.endTime) return 'live';
+  if (m.startTime) {
+    const [sh,sm] = m.startTime.split(':').map(Number);
+    const nowMin  = now.getHours()*60 + now.getMinutes();
+    const staMin  = sh*60 + sm;
+    if (staMin > nowMin && staMin - nowMin <= 30) return 'soon';
+  }
+  return 'past';
+}
+
+function statusBadge(st) {
+  const map = {
+    live:     `<span class="m-badge m-badge-live"><span class="m-live-dot"></span>Live Now</span>`,
+    soon:     `<span class="m-badge m-badge-soon">● เริ่มในไม่ช้า</span>`,
+    upcoming: `<span class="m-badge m-badge-upcoming">● ที่กำลังจะมา</span>`,
+    past:     `<span class="m-badge m-badge-past">ผ่านมาแล้ว</span>`,
+  };
+  return map[st] || '';
+}
+
+/* ───── AI Insights ───── */
+
+function aiChips(meetings) {
+  const today   = DB.today();
+  const weekEnd = addDays(currentWeekStart, 6);
+  const thisWk  = meetings.filter(m => m.date >= currentWeekStart && m.date <= weekEnd);
+  const upcoming= meetings.filter(m => m.date >= today)
+    .sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:a.startTime>b.startTime?1:-1);
+  const live    = meetings.find(m => meetingStatus(m) === 'live');
+  const soon    = meetings.find(m => meetingStatus(m) === 'soon');
+  const chips   = [];
+
+  if (live)  chips.push({ c:'#10B981', t:`กำลังประชุม: ${live.title}` });
+  else if (soon) chips.push({ c:'#F59E0B', t:`เริ่มในไม่ช้า: ${soon.title}` });
+
+  chips.push({ c:'#6366F1', t:`${thisWk.length} ประชุมสัปดาห์นี้` });
+
+  if (!live && !soon && upcoming.length > 0) {
+    chips.push({ c:'#3B82F6', t:`ถัดไป: ${upcoming[0].title} ${fmtDate(upcoming[0].date)}` });
+  } else if (upcoming.length === 0 && !live) {
+    chips.push({ c:'#A78BFA', t:'ไม่มีประชุมที่กำลังจะมา' });
+  } else if (chips.length < 3 && thisWk.length > 0) {
+    const tot = thisWk.reduce((s,m) => s + (m.attendees?.length||0), 0);
+    chips.push({ c:'#A78BFA', t:`${tot} คน เข้าร่วมสัปดาห์นี้` });
+  }
+
+  return chips.slice(0,3);
+}
+
+/* ───── Render: AI Banner ───── */
+
+function renderAIBanner(meetings) {
+  const chips = aiChips(meetings);
+  return `
+  <div class="m-ai-banner">
+    <div class="m-ai-orb">
+      <div class="m-orb-core"></div>
+      <div class="m-orb-ring"></div>
+      <div class="m-orb-ring m-orb-ring-2"></div>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="m-ai-label">AI Meeting Intelligence</div>
+      <div class="m-chips">
+        ${chips.map(c=>`
+        <div class="m-chip">
+          <span class="m-chip-dot" style="background:${c.c}"></span>
+          ${c.t}
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ───── Render: Analytics ───── */
+
+function renderAnalytics(meetings) {
+  const weekEnd = addDays(currentWeekStart, 6);
+  const thisWk  = meetings.filter(m => m.date >= currentWeekStart && m.date <= weekEnd);
+  const totAtt  = thisWk.reduce((s,m) => s + (m.attendees?.length||0), 0);
+  const durSum  = thisWk.reduce((s,m) => {
+    if (!m.startTime || !m.endTime) return s;
+    const [sh,sm] = m.startTime.split(':').map(Number);
+    const [eh,em] = m.endTime.split(':').map(Number);
+    return s + (eh*60+em - (sh*60+sm));
+  }, 0);
+  const avgDur = thisWk.length ? Math.round(durSum / thisWk.length) : 0;
+
+  return `
+  <div class="m-analytics">
+    <div class="m-analytics-card">
+      <div class="m-analytics-num">${thisWk.length}</div>
+      <div class="m-analytics-lbl">ประชุมสัปดาห์นี้</div>
+    </div>
+    <div class="m-analytics-card">
+      <div class="m-analytics-num">${totAtt}</div>
+      <div class="m-analytics-lbl">ผู้เข้าร่วมรวม</div>
+    </div>
+    <div class="m-analytics-card">
+      <div class="m-analytics-num">${avgDur || '—'}<span class="m-analytics-unit">${avgDur ? ' นาที' : ''}</span></div>
+      <div class="m-analytics-lbl">เวลาเฉลี่ย/ครั้ง</div>
+    </div>
+  </div>`;
+}
+
+/* ───── Render: Meetings Tab ───── */
+
+function renderMeetingsTab(meetings, upcoming, past) {
   const allUsers = DB.Users.getByCompany(user.companyId);
   const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
 
-  function meetingCard(m) {
-    const isPast = m.date < DB.today();
-    const attendees = m.attendees.map(id=>userMap[id]).filter(Boolean);
-    return `
-    <div class="card" style="margin-bottom:12px;${isPast?'opacity:.7':''}">
-      <div class="card-body" style="padding:18px 20px">
-        <div style="display:flex;gap:14px;align-items:flex-start">
-          <div style="width:50px;text-align:center;flex-shrink:0">
-            <div style="background:${isPast?'#F3F4F6':'var(--primary)'};border-radius:10px;padding:8px 4px">
-              <div style="font-size:20px;font-weight:700;color:${isPast?'var(--text-muted)':'#fff'};line-height:1">${new Date(m.date).getDate()}</div>
-              <div style="font-size:10px;color:${isPast?'var(--text-muted)':'rgba(255,255,255,.8)'}">${new Date(m.date).toLocaleDateString('th-TH',{month:'short'})}</div>
-            </div>
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:15px;font-weight:600;margin-bottom:6px">${m.title}</div>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary)">
-              <span>${iconSVG('clock','13')} ${m.startTime}${m.endTime?' - '+m.endTime:''} น.</span>
-              ${m.location?`<span>${iconSVG('map-pin','13')} ${m.location}</span>`:''}
-              ${m.meetingLink?`<a href="${m.meetingLink}" target="_blank" style="color:var(--primary)">${iconSVG('link','13')} เข้าร่วม Online</a>`:''}
-            </div>
-            ${m.description?`<div style="margin-top:8px;font-size:13px;color:var(--text-muted);line-height:1.6">${m.description}</div>`:''}
-            <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
-              <div class="avatar-stack">
-                ${attendees.slice(0,5).map(a=>renderAvatar(a,'sm')).join('')}
-                ${attendees.length>5?`<div class="avatar sm" style="background:var(--border);color:var(--text-secondary)">+${attendees.length-5}</div>`:''}
-              </div>
-              <span style="font-size:12px;color:var(--text-muted)">${attendees.length} คน</span>
-              ${(isManager || m.createdBy===user.id)?`<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteMeeting('${m.id}')" style="margin-left:auto">${iconSVG('trash','14')}</button>`:''}
-            </div>
+  return `
+  <div class="m-content-wrap">
+    <div>
+      <div class="m-view-header">
+        <span class="m-view-title">${weekLabel()}</span>
+        <div class="m-view-controls">
+          <button class="m-icon-btn" onclick="prevWeek()" title="สัปดาห์ก่อน">&#8592;</button>
+          <button class="m-icon-btn m-today-btn" onclick="goToday()">วันนี้</button>
+          <button class="m-icon-btn" onclick="nextWeek()" title="สัปดาห์หน้า">&#8594;</button>
+          <div class="m-toggle" style="margin-left:6px">
+            <button class="m-toggle-btn ${activeView==='week'?'active':''}" onclick="switchView('week')">Week</button>
+            <button class="m-toggle-btn ${activeView==='list'?'active':''}" onclick="switchView('list')">List</button>
           </div>
         </div>
       </div>
+      <div id="m-view-body">
+        ${activeView==='week' ? renderWeekView(meetings) : renderListView(upcoming, past, userMap)}
+      </div>
+    </div>
+    <div class="m-sidebar">
+      ${renderSidebar(upcoming, meetings)}
+    </div>
+  </div>`;
+}
+
+/* ───── Render: Week View ───── */
+
+function renderWeekView(meetings) {
+  const today   = DB.today();
+  const weekEnd = addDays(currentWeekStart, 6);
+  let html = `<div class="m-week-grid">`;
+  for (let i = 0; i < 7; i++) {
+    const day  = addDays(currentWeekStart, i);
+    const d    = new Date(day + 'T00:00:00');
+    const isTd = day === today;
+    const dayM = meetings.filter(m => m.date === day);
+    html += `
+    <div class="m-week-col ${isTd?'m-week-today':''}">
+      <div class="m-week-day-hdr">
+        <span class="m-week-day-name">${thaiDay[i]}</span>
+        <span class="m-week-day-num">${d.getDate()}</span>
+      </div>
+      <div class="m-week-events">
+        ${dayM.map(m=>`
+        <div class="m-evt m-evt-${meetingStatus(m)}" title="${m.title}${m.startTime?' '+m.startTime:''}">${m.title}</div>
+        `).join('')}
+      </div>
     </div>`;
   }
+  html += `</div>`;
+
+  const thisWkM = meetings
+    .filter(m => m.date >= currentWeekStart && m.date <= weekEnd)
+    .sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:a.startTime>b.startTime?1:-1);
+
+  if (!thisWkM.length) {
+    html += `
+    <div class="m-empty">
+      <div class="m-empty-icon">${iconSVG('video','20')}</div>
+      <h4>ไม่มีประชุมสัปดาห์นี้</h4>
+      <p>${isManager?'กดปุ่มด้านล่างขวาเพื่อสร้างนัดประชุม':'ยังไม่มีประชุมที่ถูกนัดหมายในสัปดาห์นี้'}</p>
+    </div>`;
+  } else {
+    const allUsers = DB.Users.getByCompany(user.companyId);
+    const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
+    html += `<div class="m-section-lbl">ประชุมสัปดาห์นี้ (${thisWkM.length})</div>`;
+    html += thisWkM.map(m => meetingCard(m, userMap)).join('');
+  }
+  return html;
+}
+
+/* ───── Render: List View ───── */
+
+function renderListView(upcoming, past, userMap) {
+  if (!upcoming.length && !past.length) {
+    return `
+    <div class="m-empty">
+      <div class="m-empty-icon">${iconSVG('video','20')}</div>
+      <h4>ยังไม่มีประชุม</h4>
+      <p>สร้างนัดประชุมใหม่เพื่อแจ้งทีม</p>
+    </div>`;
+  }
+  let html = '';
+  if (upcoming.length) {
+    html += `<div class="m-section-lbl">ที่กำลังจะมา (${upcoming.length})</div>`;
+    html += upcoming.map(m => meetingCard(m, userMap)).join('');
+  }
+  if (past.length) {
+    html += `<div class="m-section-lbl">ที่ผ่านมา</div>`;
+    html += past.slice(0,5).map(m => meetingCard(m, userMap)).join('');
+  }
+  return html;
+}
+
+/* ───── Meeting Card ───── */
+
+function meetingCard(m, userMap) {
+  const st  = meetingStatus(m);
+  const atts= (m.attendees||[]).map(id=>userMap[id]).filter(Boolean);
+  const d   = new Date(m.date + 'T00:00:00');
+  const can = isManager || m.createdBy === user.id;
+  return `
+  <div class="m-card ${st==='live'?'m-card-live':''}">
+    <div class="m-card-top">
+      <div class="m-date-pill">
+        <div class="m-date-day">${d.getDate()}</div>
+        <div class="m-date-mon">${thaiMon[d.getMonth()]}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="m-card-title-row">
+          <div class="m-card-title">${m.title}</div>
+          ${statusBadge(st)}
+        </div>
+        <div class="m-card-meta">
+          ${m.startTime?`<span>${iconSVG('clock','12')} ${m.startTime}${m.endTime?' - '+m.endTime:''}</span>`:''}
+          ${m.location?`<span>${iconSVG('map-pin','12')} ${m.location}</span>`:''}
+          ${m.meetingLink?`<a href="${m.meetingLink}" target="_blank">${iconSVG('link','12')} เข้าร่วม Online</a>`:''}
+        </div>
+        ${m.description?`<div class="m-card-desc">${m.description}</div>`:''}
+      </div>
+    </div>
+    <div class="m-card-footer">
+      <div style="display:flex;align-items:center">
+        <div class="m-att-stack">
+          ${atts.slice(0,5).map(a=>renderAvatar(a,'sm')).join('')}
+          ${atts.length>5?`<div class="avatar avatar-sm" style="background:rgba(255,255,255,.1);color:var(--m-text-3);font-size:10px">+${atts.length-5}</div>`:''}
+        </div>
+        <span class="m-att-count">${atts.length} คน</span>
+      </div>
+      ${can?`<button class="m-del-btn" onclick="deleteMeeting('${m.id}')">${iconSVG('trash','13')}</button>`:''}
+    </div>
+  </div>`;
+}
+
+/* ───── Render: Right Sidebar ───── */
+
+function renderSidebar(upcoming, meetings) {
+  const today   = DB.today();
+  const now     = new Date();
+  const nowStr  = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const weekEnd = addDays(currentWeekStart, 6);
+  const thisWk  = meetings.filter(m => m.date >= currentWeekStart && m.date <= weekEnd);
+  const live    = meetings.find(m => meetingStatus(m) === 'live');
+
+  let nextTarget = null;
+  for (const m of upcoming) {
+    if (!m.startTime) continue;
+    if (m.date === today && m.startTime <= nowStr) continue;
+    nextTarget = m; break;
+  }
+
+  const totAtt = thisWk.reduce((s,m) => s + (m.attendees?.length||0), 0);
+  const mini   = upcoming.slice(0,4);
 
   return `
-    ${upcoming.length===0&&past.length===0?`
-      <div class="empty-state">
-        <div class="empty-icon">${iconSVG('video','24')}</div>
-        <h4>ยังไม่มีประชุม</h4>
-        <p>สร้างนัดประชุมใหม่เพื่อแจ้งทีม</p>
-        ${isManager?`<button class="btn btn-primary" onclick="openMeeting()">${iconSVG('plus','14')} สร้างประชุม</button>`:''}
-      </div>` :
-    `${upcoming.length>0?`<h5 style="margin-bottom:12px">ที่กำลังจะมาถึง (${upcoming.length})</h5>${upcoming.map(meetingCard).join('')}`:''}`
-    + `${past.length>0?`<h5 style="margin:20px 0 12px">ที่ผ่านมา</h5>${past.slice(0,5).map(meetingCard).join('')}`:''}`}`;
+  <div class="m-sb-card">
+    <div class="m-sb-title">นับถอยหลัง</div>
+    ${nextTarget ? `
+      <div class="m-cdown-lbl">ถัดไป</div>
+      <div class="m-cdown-name">${nextTarget.title}</div>
+      <div class="m-cdown-timer" id="m-cdown">--:--:--</div>
+      <div class="m-cdown-sub">${fmtDate(nextTarget.date)}${nextTarget.startTime?' เวลา '+nextTarget.startTime+' น.':''}</div>
+    ` : `<div style="text-align:center;padding:10px 0;font-size:12px;color:var(--m-text-3)">ไม่มีประชุมที่กำลังจะมา</div>`}
+    ${live ? `<div class="m-live-banner"><span class="m-live-dot"></span>${live.title}</div>` : ''}
+  </div>
+
+  <div class="m-sb-card">
+    <div class="m-sb-title">สัปดาห์นี้</div>
+    <div class="m-stat-rows">
+      <div class="m-stat-row"><span class="m-stat-lbl">ประชุมทั้งหมด</span><span class="m-stat-val">${thisWk.length}</span></div>
+      <div class="m-stat-row"><span class="m-stat-lbl">ผู้เข้าร่วมรวม</span><span class="m-stat-val">${totAtt}</span></div>
+      <div class="m-stat-row"><span class="m-stat-lbl">ที่กำลังจะมา</span><span class="m-stat-val">${upcoming.length}</span></div>
+    </div>
+  </div>
+
+  ${mini.length ? `
+  <div class="m-sb-card">
+    <div class="m-sb-title">ประชุมถัดไป</div>
+    ${mini.map(m=>`
+    <div class="m-mini-meeting">
+      <div class="m-mini-day">${new Date(m.date+'T00:00:00').getDate()}</div>
+      <div style="min-width:0;flex:1">
+        <div class="m-mini-title">${m.title}</div>
+        <div class="m-mini-time">${fmtDate(m.date)}${m.startTime?' · '+m.startTime:''}</div>
+      </div>
+    </div>`).join('')}
+  </div>` : ''}`;
 }
+
+/* ───── Render: Announcements ───── */
 
 function renderAnnouncementsTab(anns) {
   const allUsers = DB.Users.getByCompany(user.companyId);
   const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
 
   if (!anns.length) return `
-    <div class="empty-state">
-      <div class="empty-icon">${iconSVG('megaphone','24')}</div>
-      <h4>ยังไม่มีประกาศ</h4>
-      <p>ประกาศข้อความสำคัญให้ทีมได้รับรู้</p>
-      ${isManager?`<button class="btn btn-primary" onclick="openAnnouncement()">${iconSVG('plus','14')} สร้างประกาศ</button>`:''}
-    </div>`;
+  <div class="m-empty">
+    <div class="m-empty-icon">${iconSVG('megaphone','20')}</div>
+    <h4>ยังไม่มีประกาศ</h4>
+    <p>ประกาศข้อความสำคัญให้ทีมได้รับรู้</p>
+  </div>`;
 
-  return anns.map(a=>{
-    const creator = userMap[a.createdBy];
+  const sorted = [...anns.filter(a=>a.pinned), ...anns.filter(a=>!a.pinned)];
+  return sorted.map(a => {
+    const creator  = userMap[a.createdBy];
+    const canMange = isManager || a.createdBy === user.id;
     return `
-    <div class="announcement-card ${a.pinned?'pinned':''}" style="margin-bottom:12px">
-      <div class="announcement-header ${a.pinned?'pinned':''}">
-        <div>
-          ${a.pinned?`<span style="font-size:11px;color:var(--warning);font-weight:600;display:block;margin-bottom:4px">📌 ประกาศสำคัญ</span>`:''}
-          <div style="font-size:15px;font-weight:600">${a.title}</div>
+    <div class="m-ann ${a.pinned?'m-ann-pinned':''}">
+      <div class="m-ann-hdr">
+        <div style="min-width:0;flex:1">
+          ${a.pinned?`<span class="m-ann-pin-lbl">📌 ประกาศสำคัญ</span>`:''}
+          <div class="m-ann-title">${a.title}</div>
         </div>
-        ${(isManager||a.createdBy===user.id)?`
-        <div class="dropdown" id="ann-drop-${a.id}">
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleDrop('ann-drop-${a.id}')">${iconSVG('more','15')}</button>
-          <div class="dropdown-menu" id="ann-drop-${a.id}-menu">
-            <button class="dropdown-item" onclick="togglePin('${a.id}','${!a.pinned}')">${a.pinned?'📌 เลิกปักหมุด':'📌 ปักหมุด'}</button>
-            <div class="dropdown-divider"></div>
-            <button class="dropdown-item danger" onclick="deleteAnn('${a.id}')">${iconSVG('trash','13')} ลบประกาศ</button>
+        ${canMange?`
+        <div class="m-ann-menu-wrap" id="ann-wrap-${a.id}">
+          <button class="m-ann-menu-btn" onclick="toggleAnnMenu('${a.id}')">${iconSVG('more','15')}</button>
+          <div class="m-ann-menu" id="ann-menu-${a.id}">
+            <button class="m-ann-mitem" onclick="togglePin('${a.id}','${!a.pinned}')">
+              📌 ${a.pinned?'เลิกปักหมุด':'ปักหมุด'}
+            </button>
+            <div class="m-ann-divider"></div>
+            <button class="m-ann-mitem danger" onclick="deleteAnn('${a.id}')">
+              ${iconSVG('trash','13')} ลบประกาศ
+            </button>
           </div>
         </div>`:''}
       </div>
-      <div class="announcement-body">${a.content}</div>
-      <div class="announcement-footer">
+      <div class="m-ann-body">${a.content}</div>
+      <div class="m-ann-footer">
         <span>โดย ${creator?.name||'?'}</span>
         <span>${timeAgo(a.createdAt)}</span>
       </div>
@@ -252,33 +904,196 @@ function renderAnnouncementsTab(anns) {
   }).join('');
 }
 
+/* ───── Render: Notifications ───── */
+
 function renderNotificationsTab() {
-  const notifs = DB.Notifications.getByUser(user.id);
-  const iconMap = { calendar:iconSVG('calendar','14'), 'map-pin':iconSVG('map-pin','14'), video:iconSVG('video','14'), megaphone:iconSVG('megaphone','14'), bell:iconSVG('bell','14'), clock:iconSVG('clock','14') };
+  const notifs  = DB.Notifications.getByUser(user.id);
+  const iconMap = { calendar:'calendar','map-pin':'map-pin',video:'video',megaphone:'megaphone',bell:'bell',clock:'clock' };
   DB.Notifications.markAllRead(user.id);
   updateNotifBadge();
 
   if (!notifs.length) return `
-    <div class="empty-state">
-      <div class="empty-icon">${iconSVG('bell','24')}</div>
-      <h4>ไม่มีการแจ้งเตือน</h4>
-    </div>`;
+  <div class="m-empty">
+    <div class="m-empty-icon">${iconSVG('bell','20')}</div>
+    <h4>ไม่มีการแจ้งเตือน</h4>
+    <p>การแจ้งเตือนใหม่จะปรากฏที่นี่</p>
+  </div>`;
 
   return `
-  <div class="card">
+  <div class="m-notifs-wrap">
     ${notifs.map(n=>`
-    <div style="display:flex;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border-light);align-items:flex-start">
-      <div style="width:36px;height:36px;border-radius:10px;background:${n.color}22;color:${n.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">${iconMap[n.icon]||iconSVG('bell','14')}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13.5px;font-weight:500">${n.title}</div>
-        ${n.body?`<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${n.body}</div>`:''}
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${timeAgo(n.createdAt)}</div>
+    <div class="m-notif">
+      <div class="m-notif-icon" style="background:${n.color}18;color:${n.color}">
+        ${iconSVG(iconMap[n.icon]||'bell','14')}
+      </div>
+      <div>
+        <div class="m-notif-title">${n.title}</div>
+        ${n.body?`<div class="m-notif-body">${n.body}</div>`:''}
+        <div class="m-notif-time">${timeAgo(n.createdAt)}</div>
       </div>
     </div>`).join('')}
   </div>`;
 }
 
-function openMeeting(id) {
+/* ───── Render: FAB ───── */
+
+function renderFAB() {
+  return `
+  <div class="m-fab-wrap" id="m-fab-wrap">
+    <div class="m-fab-opts" id="m-fab-opts">
+      <div class="m-fab-opt" onclick="openMeeting()">
+        <span class="m-fab-opt-lbl">นัดประชุม</span>
+        <div class="m-fab-opt-icon">${iconSVG('video','16')}</div>
+      </div>
+      <div class="m-fab-opt" onclick="openAnnouncement()">
+        <span class="m-fab-opt-lbl">ประกาศ</span>
+        <div class="m-fab-opt-icon">${iconSVG('megaphone','16')}</div>
+      </div>
+    </div>
+    <button class="m-fab-btn" id="m-fab-btn" onclick="toggleFab()" aria-label="สร้าง">
+      ${iconSVG('plus','20')}
+    </button>
+  </div>`;
+}
+
+/* ───── Main Render ───── */
+
+function render() {
+  const today    = DB.today();
+  const meetings = DB.Meetings.getForUser(user.id);
+  const upcoming = meetings.filter(m=>m.date>=today).sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:a.startTime>b.startTime?1:-1);
+  const past     = meetings.filter(m=>m.date<today).sort((a,b)=>b.date>a.date?1:b.date<a.date?-1:0);
+  const anns     = DB.Announcements.getByCompany(user.companyId);
+
+  buildHeader('ประชุม & ประกาศ', '');
+
+  document.getElementById('main').innerHTML = `
+    ${renderAIBanner(meetings)}
+    ${activeTab==='meetings' ? renderAnalytics(meetings) : ''}
+
+    <div class="m-tabs">
+      <button class="m-tab ${activeTab==='meetings'?'active':''}" onclick="switchTab('meetings')">
+        ${iconSVG('video','13')} ประชุม <span class="m-tab-count">${upcoming.length}</span>
+      </button>
+      <button class="m-tab ${activeTab==='announcements'?'active':''}" onclick="switchTab('announcements')">
+        ${iconSVG('megaphone','13')} ประกาศ ${anns.length?`<span class="m-tab-count">${anns.length}</span>`:''}
+      </button>
+      <button class="m-tab ${activeTab==='notifications'?'active':''}" onclick="switchTab('notifications')">
+        ${iconSVG('bell','13')} แจ้งเตือน
+      </button>
+    </div>
+
+    <div id="tab-content">
+      ${activeTab==='meetings'      ? renderMeetingsTab(meetings, upcoming, past) : ''}
+      ${activeTab==='announcements' ? renderAnnouncementsTab(anns) : ''}
+      ${activeTab==='notifications' ? renderNotificationsTab() : ''}
+    </div>
+
+    ${isManager ? renderFAB() : ''}
+  `;
+
+  if (activeTab === 'meetings') startCountdown(upcoming);
+}
+
+function switchTab(tab) { activeTab = tab; render(); }
+
+/* ───── View Switching & Week Nav ───── */
+
+function switchView(v) {
+  activeView = v;
+  const meetings = DB.Meetings.getForUser(user.id);
+  const today    = DB.today();
+  const upcoming = meetings.filter(m=>m.date>=today).sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:0);
+  const past     = meetings.filter(m=>m.date<today);
+  const allUsers = DB.Users.getByCompany(user.companyId);
+  const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
+  const body     = document.getElementById('m-view-body');
+  if (body) body.innerHTML = v==='week' ? renderWeekView(meetings) : renderListView(upcoming, past, userMap);
+  document.querySelectorAll('.m-toggle-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent.trim().toLowerCase()===v);
+  });
+}
+
+function prevWeek() { currentWeekStart = addDays(currentWeekStart,-7); refreshWeek(); }
+function nextWeek() { currentWeekStart = addDays(currentWeekStart, 7); refreshWeek(); }
+function goToday()  { currentWeekStart = getMonday(DB.today());        refreshWeek(); }
+
+function refreshWeek() {
+  const el = document.querySelector('.m-view-title');
+  if (el) el.textContent = weekLabel();
+  const meetings = DB.Meetings.getForUser(user.id);
+  const today    = DB.today();
+  const upcoming = meetings.filter(m=>m.date>=today).sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:0);
+  const past     = meetings.filter(m=>m.date<today);
+  const allUsers = DB.Users.getByCompany(user.companyId);
+  const userMap  = Object.fromEntries(allUsers.map(u=>[u.id,u]));
+  const body     = document.getElementById('m-view-body');
+  if (body) body.innerHTML = activeView==='week' ? renderWeekView(meetings) : renderListView(upcoming, past, userMap);
+  startCountdown(upcoming);
+}
+
+/* ───── Countdown Timer ───── */
+
+function startCountdown(upcoming) {
+  if (cdownInterval) { clearInterval(cdownInterval); cdownInterval = null; }
+  const el = document.getElementById('m-cdown');
+  if (!el || !upcoming.length) return;
+
+  const today  = DB.today();
+  const now    = new Date();
+  const nowStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  let target = null;
+  for (const m of upcoming) {
+    if (!m.startTime) continue;
+    if (m.date === today && m.startTime <= nowStr) continue;
+    const d = new Date(m.date + 'T' + m.startTime + ':00');
+    target = d; break;
+  }
+  if (!target) return;
+
+  function tick() {
+    const el2 = document.getElementById('m-cdown');
+    if (!el2) { clearInterval(cdownInterval); return; }
+    const diff = target - new Date();
+    if (diff <= 0) { el2.textContent = '00:00:00'; clearInterval(cdownInterval); return; }
+    const h = Math.floor(diff/3600000);
+    const m = Math.floor((diff%3600000)/60000);
+    const s = Math.floor((diff%60000)/1000);
+    el2.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  tick();
+  cdownInterval = setInterval(tick, 1000);
+}
+
+/* ───── FAB ───── */
+
+function toggleFab() {
+  const wrap = document.getElementById('m-fab-wrap');
+  if (wrap) wrap.classList.toggle('open');
+}
+
+/* ───── Ann Dropdown ───── */
+
+function toggleAnnMenu(id) {
+  const menu = document.getElementById('ann-menu-' + id);
+  document.querySelectorAll('.m-ann-menu.open').forEach(m=>{ if(m!==menu) m.classList.remove('open'); });
+  menu?.classList.toggle('open');
+}
+
+function closeAllAnnMenus() {
+  document.querySelectorAll('.m-ann-menu.open').forEach(m=>m.classList.remove('open'));
+}
+
+document.addEventListener('click', e=>{
+  const fab = document.getElementById('m-fab-wrap');
+  if (fab && fab.classList.contains('open') && !fab.contains(e.target)) fab.classList.remove('open');
+  if (!e.target.closest('.m-ann-menu-wrap')) closeAllAnnMenus();
+});
+
+/* ───── CRUD (preserved) ───── */
+
+function openMeeting() {
   const allUsers = DB.Users.getByCompany(user.companyId).filter(u=>u.status==='active');
   document.getElementById('meeting-modal-title').textContent = 'สร้างนัดประชุม';
   document.getElementById('m-date').value = DB.today();
@@ -290,6 +1105,8 @@ function openMeeting(id) {
         ${renderAvatar(u,'sm')} ${u.name} <span style="color:var(--text-muted);font-size:11px">${u.department||''}</span>
       </label>
     </div>`).join('');
+  const wrap = document.getElementById('m-fab-wrap');
+  if (wrap) wrap.classList.remove('open');
   Modal.open('modal-meeting');
 }
 
@@ -301,19 +1118,19 @@ function clearAll() {
 }
 
 function saveMeeting() {
-  const title    = document.getElementById('m-title').value.trim();
-  const date     = document.getElementById('m-date').value;
-  const startTime= document.getElementById('m-start').value;
-  if (!title || !date || !startTime) return Toast.error('กรุณากรอกชื่อประชุม วันที่ และเวลาเริ่ม');
+  const title     = document.getElementById('m-title').value.trim();
+  const date      = document.getElementById('m-date').value;
+  const startTime = document.getElementById('m-start').value;
+  if (!title||!date||!startTime) return Toast.error('กรุณากรอกชื่อประชุม วันที่ และเวลาเริ่ม');
   const attendees = [...document.querySelectorAll('#attendees-list input:checked')].map(cb=>cb.value);
   if (!attendees.length) return Toast.error('เลือกผู้เข้าร่วมอย่างน้อย 1 คน');
   DB.Meetings.create({
-    companyId: user.companyId, title, date, startTime,
-    endTime:   document.getElementById('m-end').value,
-    location:  document.getElementById('m-location').value.trim(),
+    companyId:   user.companyId, title, date, startTime,
+    endTime:     document.getElementById('m-end').value,
+    location:    document.getElementById('m-location').value.trim(),
     meetingLink: document.getElementById('m-link').value.trim(),
     description: document.getElementById('m-desc').value.trim(),
-    attendees, createdBy: user.id
+    attendees,   createdBy: user.id
   });
   Modal.close('modal-meeting');
   Toast.success('สร้างนัดประชุมและแจ้งเตือนผู้เข้าร่วมแล้ว');
@@ -322,7 +1139,9 @@ function saveMeeting() {
 }
 
 function clearMeetingForm() {
-  ['m-title','m-location','m-link','m-desc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['m-title','m-location','m-link','m-desc'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.value='';
+  });
 }
 
 function deleteMeeting(id) {
@@ -330,17 +1149,24 @@ function deleteMeeting(id) {
 }
 
 function openAnnouncement() {
-  document.getElementById('ann-title').value = '';
+  document.getElementById('ann-title').value   = '';
   document.getElementById('ann-content').value = '';
-  document.getElementById('ann-pin').checked = false;
+  document.getElementById('ann-pin').checked   = false;
+  const wrap = document.getElementById('m-fab-wrap');
+  if (wrap) wrap.classList.remove('open');
   Modal.open('modal-ann');
 }
 
 function saveAnnouncement() {
   const title   = document.getElementById('ann-title').value.trim();
   const content = document.getElementById('ann-content').value.trim();
-  if (!title || !content) return Toast.error('กรุณากรอกหัวข้อและเนื้อหา');
-  DB.Announcements.create({ companyId: user.companyId, title, content, pinned: document.getElementById('ann-pin').checked, audience: document.getElementById('ann-audience').value, createdBy: user.id });
+  if (!title||!content) return Toast.error('กรุณากรอกหัวข้อและเนื้อหา');
+  DB.Announcements.create({
+    companyId: user.companyId, title, content,
+    pinned:    document.getElementById('ann-pin').checked,
+    audience:  document.getElementById('ann-audience').value,
+    createdBy: user.id
+  });
   Modal.close('modal-ann');
   Toast.success('เผยแพร่ประกาศแล้ว');
   activeTab = 'announcements';
@@ -348,21 +1174,14 @@ function saveAnnouncement() {
 }
 
 function togglePin(id, pinned) {
-  DB.Announcements.update(id, { pinned: pinned === 'true' });
-  closeDrop(); render();
+  DB.Announcements.update(id, { pinned: pinned==='true' });
+  closeAllAnnMenus();
+  render();
 }
 
 function deleteAnn(id) {
   confirmDialog('ต้องการลบประกาศนี้?', ()=>{ DB.Announcements.delete(id); Toast.success('ลบประกาศแล้ว'); render(); });
 }
-
-function toggleDrop(dropId) {
-  const menu = document.getElementById(dropId+'-menu');
-  document.querySelectorAll('.dropdown-menu.open').forEach(m=>{ if(m!==menu) m.classList.remove('open'); });
-  menu?.classList.toggle('open');
-}
-function closeDrop() { document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open')); }
-document.addEventListener('click', e=>{ if(!e.target.closest('.dropdown')) closeDrop(); });
 </script>
 </body>
 </html>
