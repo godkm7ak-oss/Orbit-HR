@@ -328,10 +328,16 @@ function attendanceStatusBadge(status) {
 }
 
 /* ── Date Helpers ───────────────────────────────── */
+function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date();
+  if (dateStr.length === 10) return new Date(dateStr + 'T00:00:00');
+  return new Date(dateStr);
+}
+
 function formatDate(dateStr, opts = {}) {
   if (!dateStr) return '-';
   try {
-    return new Date(dateStr).toLocaleDateString('th-TH', { year:'numeric', month:'long', day:'numeric', ...opts });
+    return parseLocalDate(dateStr).toLocaleDateString('th-TH', { year:'numeric', month:'long', day:'numeric', ...opts });
   } catch { return dateStr; }
 }
 
@@ -358,7 +364,7 @@ function timeAgo(isoStr) {
 }
 
 function getDaysThai(dateStr) {
-  return ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][new Date(dateStr).getDay()];
+  return ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][parseLocalDate(dateStr).getDay()];
 }
 
 function getWeekDays(mondayStr) {

@@ -119,7 +119,7 @@ function renderTeamGrid(weekStart, shifts) {
         <thead>
           <tr>
             <th style="min-width:140px;text-align:left;padding-left:16px">พนักงาน</th>
-            ${days.map((d,i)=>`<th class="${d===today?'today-col':''}">${dayNames[i]}<br><span style="font-weight:400;font-size:11px">${new Date(d).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span></th>`).join('')}
+            ${days.map((d,i)=>`<th class="${d===today?'today-col':''}">${dayNames[i]}<br><span style="font-weight:400;font-size:11px">${new Date(d+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span></th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -170,8 +170,8 @@ function renderMySchedule(weekStart, shifts) {
       <div class="card" style="${isToday?'border-color:var(--primary);':''}">
         <div style="padding:12px;text-align:center">
           <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${isToday?'var(--primary)':'var(--text-muted)'}">${dayNames[i]}</div>
-          <div style="font-size:22px;font-weight:700;margin:4px 0;color:${isToday?'var(--primary)':'var(--text-primary)'}">${new Date(d).getDate()}</div>
-          <div style="font-size:11px;color:var(--text-muted)">${new Date(d).toLocaleDateString('th-TH',{month:'short'})}</div>
+          <div style="font-size:22px;font-weight:700;margin:4px 0;color:${isToday?'var(--primary)':'var(--text-primary)'}">${new Date(d+'T00:00:00').getDate()}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${new Date(d+'T00:00:00').toLocaleDateString('th-TH',{month:'short'})}</div>
           <div style="margin-top:12px;min-height:48px;display:flex;align-items:center;justify-content:center">
             ${shift
               ? `<div style="padding:6px 10px;border-radius:8px;background:${shift.color}22;color:${shift.color};text-align:center">
