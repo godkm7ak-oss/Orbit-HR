@@ -320,6 +320,14 @@ body { font-family: var(--font); background: #F5F6FA; min-height: 100vh; display
             <input type="number" id="reg-radius" class="form-control" value="200" min="50" max="2000" placeholder="200">
             <div class="form-hint">พนักงานต้องอยู่ในรัศมีนี้จึงเช็คอินได้</div>
           </div>
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">โค้ดทดลองใช้ / Promo Code <span style="color:var(--muted);font-weight:400">(ถ้ามี)</span></label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="reg-code" class="form-control" placeholder="เช่น HOTEL30" style="text-transform:uppercase;letter-spacing:1px;font-weight:600;flex:1" oninput="checkCode(this.value)">
+              <div id="code-status" style="display:flex;align-items:center;flex-shrink:0;font-size:13px;font-weight:600;min-width:80px"></div>
+            </div>
+            <div class="form-hint">มีโค้ดพิเศษ? ใส่ที่นี่เพื่อขยายระยะเวลาทดลองใช้</div>
+          </div>
           <div style="display:flex;gap:10px;margin-top:4px">
             <button class="submit-btn" style="background:#F3F4F6;color:#374151" onclick="prevStep(3)">← ย้อนกลับ</button>
             <button class="submit-btn" onclick="register()">🎉 สร้างบัญชีเลย!</button>
@@ -422,13 +430,33 @@ function updateSteps() {
   });
 }
 
+function checkCode(val) {
+  const el = document.getElementById('code-status');
+  if (!val || val.length < 3) { el.innerHTML = ''; return; }
+  const v = DB.TrialCodes.validate(val.toUpperCase());
+  if (v.valid) {
+    el.innerHTML = `<span style="color:#10B981">✓ ${v.entry.durationDays} วัน</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#EF4444">✗ ${v.error}</span>`;
+  }
+}
+
 function register() {
   clearAlert('reg');
+  const code   = (document.getElementById('reg-code')?.value || '').trim().toUpperCase();
+  if (code) {
+    const v = DB.TrialCodes.validate(code);
+    if (!v.valid) return showAlert('reg', `โค้ด: ${v.error}`);
+  }
   const result = Auth.register(
     { name: document.getElementById('reg-company-name').value.trim(), industry: document.getElementById('reg-industry').value, workStart: document.getElementById('reg-work-start').value, workEnd: document.getElementById('reg-work-end').value, checkInRadius: parseInt(document.getElementById('reg-radius').value) || 200 },
-    { name: document.getElementById('reg-name').value.trim(), email: document.getElementById('reg-email').value.trim(), password: document.getElementById('reg-password').value }
+    { name: document.getElementById('reg-name').value.trim(), email: document.getElementById('reg-email').value.trim(), password: document.getElementById('reg-password').value },
+    code
   );
   if (result.error) return showAlert('reg', result.error);
+  if (result.codeApplied) {
+    sessionStorage.setItem('orbit-welcome-days', result.trialDays);
+  }
   window.location.href = 'dashboard.html';
 }
 

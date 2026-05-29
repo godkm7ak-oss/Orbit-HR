@@ -167,6 +167,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <button class="o-nav-item active" onclick="showSection('overview',this)"><span class="o-nav-dot"></span>ภาพรวม</button>
     <button class="o-nav-item" onclick="showSection('companies',this)"><span class="o-nav-dot"></span>บริษัท</button>
     <button class="o-nav-item" onclick="showSection('users',this)"><span class="o-nav-dot"></span>ผู้ใช้งาน</button>
+    <button class="o-nav-item" onclick="showSection('codes',this)"><span class="o-nav-dot" style="background:var(--orange)"></span>Trial Codes</button>
+    <button class="o-nav-item" onclick="showSection('emails',this)"><span class="o-nav-dot" style="background:var(--green)"></span>Email Leads</button>
+    <button class="o-nav-item" onclick="showSection('settings',this)"><span class="o-nav-dot" style="background:var(--blue)"></span>ตั้งค่า</button>
     <button class="o-nav-item" onclick="showSection('health',this)"><span class="o-nav-dot"></span>ระบบ</button>
     <div class="o-sidebar-footer">
       <button class="o-signout" onclick="lockDashboard()">⬡ ออกจากระบบ Owner</button>
@@ -183,11 +186,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <script src="js/db.js"></script>
 <script src="js/auth.js"></script>
 <script>
-const OWNER_CODE = 'ORBIT2026';
+let OWNER_CODE = 'ORBIT2026';
+
+function getOwnerCode() {
+  const saved = DB.OwnerSettings.get().ownerCode;
+  return saved ? saved : 'ORBIT2026';
+}
 
 function unlock() {
-  const code = document.getElementById('access-code').value.trim().toUpperCase();
+  const code  = document.getElementById('access-code').value.trim();
   const errEl = document.getElementById('lock-err');
+  OWNER_CODE  = getOwnerCode();
   if (code !== OWNER_CODE) {
     errEl.textContent = 'Access code ไม่ถูกต้อง';
     return;
@@ -246,11 +255,13 @@ function planBadge(plan) {
 /* ── Sections ── */
 function renderSection(name) {
   const main = document.getElementById('o-main');
-  if (name === 'overview')   main.innerHTML = renderOverview();
-  if (name === 'companies')  main.innerHTML = renderCompanies();
-  if (name === 'users')      main.innerHTML = renderUsers();
-  if (name === 'health')     main.innerHTML = renderHealth();
-  if (name === 'overview')   setTimeout(drawCharts, 100);
+  if (name === 'overview')  { main.innerHTML = renderOverview();   setTimeout(drawCharts, 100); }
+  if (name === 'companies')   main.innerHTML = renderCompanies();
+  if (name === 'users')       main.innerHTML = renderUsers();
+  if (name === 'codes')       main.innerHTML = renderCodes();
+  if (name === 'emails')      main.innerHTML = renderEmailLeads();
+  if (name === 'settings')    main.innerHTML = renderSettings();
+  if (name === 'health')      main.innerHTML = renderHealth();
 }
 
 /* ── Overview ── */
@@ -565,6 +576,254 @@ function renderHealth() {
       <div><span style="color:var(--text3)">Timezone: </span>${Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
     </div>
   </div>`;
+}
+
+/* ── Trial Codes ── */
+function renderCodes() {
+  const codes = DB.TrialCodes.getAll().sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+  const planOpts = ['trial','starter','pro','enterprise'].map(p => `<option value="${p}">${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('');
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Trial Codes</h1>
+    <p style="font-size:13px;color:var(--text2)">สร้างโค้ดทดลองใช้ พร้อมกำหนดจำนวนวันและแพ็กเกจ</p>
+  </div>
+
+  <div class="o-card" style="margin-bottom:20px">
+    <div class="o-card-title">สร้างโค้ดใหม่</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px">
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">โค้ด (ตัวอักษร/ตัวเลข)</div>
+        <input id="nc-code" type="text" placeholder="เช่น HOTEL60" maxlength="20"
+          style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);text-transform:uppercase;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">จำนวนวัน</div>
+        <input id="nc-days" type="number" value="30" min="1" max="365"
+          style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">แพ็กเกจที่ได้รับ</div>
+        <select id="nc-plan" style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);outline:none">${planOpts}</select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">ใช้ได้กี่ครั้ง</div>
+        <input id="nc-uses" type="number" value="1" min="1" max="999"
+          style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">หมายเหตุ (ไม่บังคับ)</div>
+        <input id="nc-note" type="text" placeholder="เช่น สำหรับลูกค้า VIP"
+          style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);outline:none">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="genRandomCode()" style="padding:9px 16px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer">🎲 สุ่มโค้ด</button>
+      <button onclick="createCode()" style="padding:9px 20px;background:var(--primary);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer">+ สร้างโค้ด</button>
+    </div>
+    <div id="code-create-msg" style="margin-top:10px;font-size:13px;min-height:20px"></div>
+  </div>
+
+  <div class="o-card">
+    <div class="o-section-hdr">
+      <div class="o-section-title">โค้ดทั้งหมด (${codes.length})</div>
+    </div>
+    ${codes.length === 0 ? '<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">ยังไม่มีโค้ด — สร้างโค้ดแรกของคุณด้านบน</div>' : `
+    <table class="o-table">
+      <thead><tr><th>โค้ด</th><th>ระยะเวลา</th><th>แพ็กเกจ</th><th>ใช้แล้ว</th><th>สถานะ</th><th>หมายเหตุ</th><th>สร้างเมื่อ</th><th></th></tr></thead>
+      <tbody>
+        ${codes.map(c => `
+        <tr>
+          <td><code style="font-size:13px;background:rgba(255,255,255,.07);padding:3px 9px;border-radius:6px;letter-spacing:1px;font-weight:700;color:${c.active?'var(--primary)':'var(--text3)'}">${c.code}</code></td>
+          <td style="font-weight:600;color:var(--text)">${c.durationDays} วัน</td>
+          <td><span class="o-badge ${c.plan==='enterprise'?'o-badge-green':c.plan==='pro'?'o-badge-green':'o-badge-orange'}">${c.plan}</span></td>
+          <td style="text-align:center">${c.usedCount} / ${c.maxUses}</td>
+          <td>${c.active ? '<span class="o-badge o-badge-green">Active</span>' : '<span class="o-badge o-badge-gray">ปิด</span>'}</td>
+          <td style="font-size:12px;color:var(--text3)">${c.note||'—'}</td>
+          <td style="font-size:12px">${new Date(c.createdAt).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button onclick="copyCode('${c.code}')" style="padding:5px 10px;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font)">คัดลอก</button>
+              <button onclick="toggleCode('${c.id}')" style="padding:5px 10px;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font)">${c.active?'ปิด':'เปิด'}</button>
+              <button onclick="deleteCode('${c.id}')" style="padding:5px 10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15);border-radius:6px;color:var(--red);font-size:11px;cursor:pointer;font-family:var(--font)">ลบ</button>
+            </div>
+          </td>
+        </tr>
+        ${c.usedBy?.length > 0 ? `<tr><td colspan="8" style="padding:0 14px 10px;font-size:11px;color:var(--text3)">ใช้โดย: ${c.usedBy.map(u => u.companyName).join(', ')}</td></tr>` : ''}
+        `).join('')}
+      </tbody>
+    </table>`}
+  </div>`;
+}
+
+function genRandomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const code = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  const el = document.getElementById('nc-code');
+  if (el) el.value = code;
+}
+
+function createCode() {
+  const code  = (document.getElementById('nc-code')?.value || '').toUpperCase().trim();
+  const days  = parseInt(document.getElementById('nc-days')?.value) || 30;
+  const plan  = document.getElementById('nc-plan')?.value || 'pro';
+  const uses  = parseInt(document.getElementById('nc-uses')?.value) || 1;
+  const note  = document.getElementById('nc-note')?.value.trim() || '';
+  const msgEl = document.getElementById('code-create-msg');
+
+  if (!code || code.length < 3) { msgEl.innerHTML = '<span style="color:var(--red)">โค้ดต้องมีอย่างน้อย 3 ตัวอักษร</span>'; return; }
+  const result = DB.TrialCodes.create({ code, durationDays: days, plan, maxUses: uses, note });
+  if (result?.error) { msgEl.innerHTML = `<span style="color:var(--red)">${result.error}</span>`; return; }
+  msgEl.innerHTML = `<span style="color:var(--green)">✓ สร้างโค้ด <strong>${code}</strong> สำเร็จ — ${days} วัน</span>`;
+  document.getElementById('nc-code').value = '';
+  document.getElementById('nc-note').value = '';
+  setTimeout(() => renderSection('codes'), 1200);
+}
+
+function copyCode(code) {
+  navigator.clipboard?.writeText(code).then(() => {
+    const btns = document.querySelectorAll('button');
+    btns.forEach(b => { if (b.textContent.trim() === 'คัดลอก' && b.onclick?.toString().includes(code)) b.textContent = '✓'; });
+    setTimeout(() => renderSection('codes'), 1500);
+  });
+}
+
+function toggleCode(id) { DB.TrialCodes.toggle(id); renderSection('codes'); }
+function deleteCode(id) {
+  if (!confirm('ลบโค้ดนี้?')) return;
+  DB.TrialCodes.delete(id); renderSection('codes');
+}
+
+/* ── Email Leads ── */
+function renderEmailLeads() {
+  const emails = DB.Emails.getAll().sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+  const srcCount = {};
+  emails.forEach(e => { srcCount[e.source] = (srcCount[e.source]||0)+1; });
+
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Email Leads</h1>
+    <p style="font-size:13px;color:var(--text2)">${emails.length} รายการ</p>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+    ${Object.entries(srcCount).map(([src,cnt]) => `
+    <div class="o-card" style="padding:14px 20px;text-align:center;min-width:100px">
+      <div style="font-size:20px;font-weight:700">${cnt}</div>
+      <div style="font-size:11px;color:var(--text3)">${src}</div>
+    </div>`).join('')}
+    <div class="o-card" style="padding:14px 20px;text-align:center;min-width:140px;cursor:pointer" onclick="exportEmails()">
+      <div style="font-size:20px;font-weight:700;color:var(--primary)">↓</div>
+      <div style="font-size:11px;color:var(--text3)">Export CSV</div>
+    </div>
+  </div>
+
+  <div class="o-card">
+    ${emails.length === 0 ? '<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">ยังไม่มีอีเมล — เมื่อคนกรอกฟอร์มบน landing page จะแสดงที่นี่</div>' : `
+    <table class="o-table">
+      <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>แหล่ง</th><th>วันที่</th><th></th></tr></thead>
+      <tbody>
+        ${emails.map(e => `
+        <tr>
+          <td style="font-weight:500;color:var(--text)">${e.email}</td>
+          <td>${e.name||'—'}</td>
+          <td><span class="o-badge o-badge-orange" style="font-size:10px">${e.source}</span></td>
+          <td style="font-size:12px">${new Date(e.createdAt).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'})}</td>
+          <td><button onclick="deleteEmail('${e.id}')" style="padding:4px 10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15);border-radius:6px;color:var(--red);font-size:11px;cursor:pointer;font-family:var(--font)">ลบ</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`}
+  </div>`;
+}
+
+function deleteEmail(id) { DB.Emails.delete(id); renderSection('emails'); }
+
+function exportEmails() {
+  const emails = DB.Emails.getAll();
+  const header = ['อีเมล','ชื่อ','แหล่ง','วันที่'];
+  const rows   = emails.map(e => [e.email, e.name||'', e.source, e.createdAt.slice(0,10)]);
+  const csv    = [header,...rows].map(r => r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob   = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  const a      = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `orbit-emails-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+/* ── Settings ── */
+function renderSettings() {
+  const s = DB.OwnerSettings.get();
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">ตั้งค่าระบบ</h1>
+    <p style="font-size:13px;color:var(--text2)">ข้อมูลการชำระเงินที่แสดงบน landing page เมื่อลูกค้าเลือกแพ็กเกจ</p>
+  </div>
+
+  <div class="o-card" style="max-width:560px">
+    <div class="o-card-title" style="margin-bottom:18px">ข้อมูลการรับชำระเงิน</div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">📱 PromptPay (เบอร์มือถือหรือเลขบัตร)</div>
+      <input id="s-promptpay" type="text" value="${s.promptpay||''}" placeholder="เช่น 0812345678"
+        style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:14px;font-family:var(--font);outline:none">
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">🏦 ชื่อธนาคาร</div>
+      <input id="s-bank-name" type="text" value="${s.bankName||''}" placeholder="เช่น กสิกรไทย"
+        style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:14px;font-family:var(--font);outline:none">
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">เลขบัญชี</div>
+      <input id="s-bank-acc" type="text" value="${s.bankAccount||''}" placeholder="xxx-x-xxxxx-x"
+        style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:14px;font-family:var(--font);outline:none">
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">ชื่อบัญชี</div>
+      <input id="s-bank-holder" type="text" value="${s.bankHolder||''}" placeholder="ชื่อเจ้าของบัญชี"
+        style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:14px;font-family:var(--font);outline:none">
+    </div>
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">💬 LINE ID (รับสลิป)</div>
+      <input id="s-line" type="text" value="${s.lineId||''}" placeholder="@yourbusiness"
+        style="width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:14px;font-family:var(--font);outline:none">
+    </div>
+
+    <button onclick="saveSettings()" style="width:100%;padding:12px;background:var(--primary);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer">บันทึกการตั้งค่า</button>
+    <div id="settings-saved" style="display:none;margin-top:10px;text-align:center;font-size:13px;color:var(--green)">✓ บันทึกแล้ว</div>
+  </div>
+
+  <div class="o-card" style="max-width:560px;margin-top:16px">
+    <div class="o-card-title" style="margin-bottom:14px">Owner Access Code</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">เปลี่ยน access code สำหรับ owner dashboard นี้</div>
+    <div style="display:flex;gap:10px">
+      <input id="s-new-code" type="password" placeholder="รหัสใหม่ (อย่างน้อย 6 ตัว)" maxlength="30"
+        style="flex:1;padding:10px 13px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:14px;font-family:var(--font);outline:none">
+      <button onclick="changeOwnerCode()" style="padding:10px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer">เปลี่ยน</button>
+    </div>
+    <div id="code-change-msg" style="margin-top:8px;font-size:12px;min-height:18px"></div>
+  </div>`;
+}
+
+function saveSettings() {
+  DB.OwnerSettings.save({
+    promptpay:   document.getElementById('s-promptpay')?.value.trim(),
+    bankName:    document.getElementById('s-bank-name')?.value.trim(),
+    bankAccount: document.getElementById('s-bank-acc')?.value.trim(),
+    bankHolder:  document.getElementById('s-bank-holder')?.value.trim(),
+    lineId:      document.getElementById('s-line')?.value.trim(),
+  });
+  const el = document.getElementById('settings-saved');
+  if (el) { el.style.display = 'block'; setTimeout(() => el.style.display='none', 2500); }
+}
+
+function changeOwnerCode() {
+  const newCode = document.getElementById('s-new-code')?.value.trim();
+  const msgEl   = document.getElementById('code-change-msg');
+  if (!newCode || newCode.length < 6) { msgEl.innerHTML = '<span style="color:var(--red)">ต้องมีอย่างน้อย 6 ตัวอักษร</span>'; return; }
+  DB.OwnerSettings.save({ ownerCode: newCode });
+  OWNER_CODE = newCode;
+  document.getElementById('s-new-code').value = '';
+  msgEl.innerHTML = '<span style="color:var(--green)">✓ เปลี่ยน access code แล้ว</span>';
+  setTimeout(() => { msgEl.innerHTML = ''; }, 3000);
 }
 
 function seedDemoData() {

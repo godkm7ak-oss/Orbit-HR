@@ -65,6 +65,20 @@
         <label class="form-label">เบอร์โทรศัพท์</label>
         <input type="tel" id="e-phone" class="form-control" placeholder="08x-xxx-xxxx">
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เงินเดือน (฿)</label>
+          <input type="number" id="e-salary" class="form-control" placeholder="0" min="0" step="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ธนาคาร</label>
+          <input type="text" id="e-bank-name" class="form-control" placeholder="เช่น กสิกรไทย">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">เลขที่บัญชี</label>
+        <input type="text" id="e-bank-acc" class="form-control" placeholder="xxx-x-xxxxx-x">
+      </div>
       <div id="e-password-group" class="form-group">
         <label class="form-label">รหัสผ่าน <span style="color:var(--text-muted);font-weight:400">(สำหรับ Admin/HR เท่านั้น)</span></label>
         <input type="password" id="e-password" class="form-control" placeholder="ตั้งรหัสผ่าน">
@@ -200,7 +214,8 @@ function openAdd() {
   editingId = null;
   document.getElementById('emp-modal-title').textContent = 'เพิ่มพนักงาน';
   document.getElementById('emp-save-btn').textContent = 'เพิ่มพนักงาน';
-  ['e-name','e-email','e-dept','e-position','e-phone','e-password'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['e-name','e-email','e-dept','e-position','e-phone','e-bank-name','e-bank-acc','e-password'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('e-salary').value = '';
   document.getElementById('e-role').value = 'employee';
   document.getElementById('e-start').value = DB.today();
   Modal.open('modal-emp');
@@ -216,10 +231,13 @@ function editEmployee(id) {
   document.getElementById('e-email').value    = emp.email||'';
   document.getElementById('e-dept').value     = emp.department||'';
   document.getElementById('e-position').value = emp.position||'';
-  document.getElementById('e-phone').value    = emp.phone||'';
-  document.getElementById('e-role').value     = emp.role||'employee';
-  document.getElementById('e-start').value    = emp.startDate||DB.today();
-  document.getElementById('e-password').value = '';
+  document.getElementById('e-phone').value     = emp.phone||'';
+  document.getElementById('e-salary').value    = emp.salary||'';
+  document.getElementById('e-bank-name').value = emp.bankName||'';
+  document.getElementById('e-bank-acc').value  = emp.bankAccount||'';
+  document.getElementById('e-role').value      = emp.role||'employee';
+  document.getElementById('e-start').value     = emp.startDate||DB.today();
+  document.getElementById('e-password').value  = '';
   Modal.open('modal-emp');
 }
 
@@ -229,7 +247,7 @@ function saveEmployee() {
   const role  = document.getElementById('e-role').value;
   if (!name) return Toast.error('กรุณาใส่ชื่อ-นามสกุล');
   if (['admin','hr'].includes(role) && !email) return Toast.error('Admin/HR ต้องมีอีเมล');
-  const data = { name, email, role, department: document.getElementById('e-dept').value.trim(), position: document.getElementById('e-position').value.trim(), phone: document.getElementById('e-phone').value.trim(), startDate: document.getElementById('e-start').value, password: document.getElementById('e-password').value||'orbit1234', companyId: user.companyId };
+  const data = { name, email, role, department: document.getElementById('e-dept').value.trim(), position: document.getElementById('e-position').value.trim(), phone: document.getElementById('e-phone').value.trim(), salary: parseFloat(document.getElementById('e-salary').value)||0, bankName: document.getElementById('e-bank-name').value.trim(), bankAccount: document.getElementById('e-bank-acc').value.trim(), startDate: document.getElementById('e-start').value, password: document.getElementById('e-password').value||'orbit1234', companyId: user.companyId };
   if (editingId) { DB.Users.update(editingId, data); Toast.success('อัปเดตข้อมูลพนักงานแล้ว'); }
   else { DB.Users.create(data); Toast.success('เพิ่มพนักงานสำเร็จ'); }
   Modal.close('modal-emp');

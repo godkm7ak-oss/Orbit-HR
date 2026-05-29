@@ -71,13 +71,30 @@ const Auth = (() => {
     return { user, company };
   }
 
-  function register(companyData, adminData) {
-    const company = DB.Companies.create(companyData);
-    const admin   = DB.Users.create({ ...adminData, companyId: company.id, role: 'admin' });
+  function register(companyData, adminData, trialCode = '') {
+    let trialDays = 14;
+    let appliedPlan = 'trial';
+    let codeEntry  = null;
+
+    if (trialCode) {
+      const v = DB.TrialCodes.validate(trialCode);
+      if (v.valid) {
+        trialDays  = v.entry.durationDays;
+        appliedPlan = v.entry.plan || 'trial';
+        codeEntry   = v.entry;
+      }
+    }
+
+    const trialEnds = new Date(Date.now() + trialDays * 86400000).toISOString();
+    const company   = DB.Companies.create({ ...companyData, plan: appliedPlan, trialEnds });
+    const admin     = DB.Users.create({ ...adminData, companyId: company.id, role: 'admin' });
     DB.LeaveTypes.seedDefaults(company.id);
     DB.Shifts.seedDefaults(company.id);
+
+    if (codeEntry) DB.TrialCodes.redeem(trialCode, company.id, company.name);
+
     DB.Session.set({ userId: admin.id, companyId: company.id, role: 'admin' });
-    return { company, admin };
+    return { company, admin, trialDays, codeApplied: !!codeEntry };
   }
 
   function logout() {

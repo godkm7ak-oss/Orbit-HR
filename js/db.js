@@ -763,6 +763,93 @@ const DB = (() => {
     },
   };
 
+  /* ── Trial Codes ────────────────────────────── */
+  const TrialCodes = {
+    LSKEY: 'orbit-trial-codes',
+    getAll()  { try { return JSON.parse(localStorage.getItem('orbit-trial-codes') || '[]'); } catch { return []; } },
+    _save(list){ localStorage.setItem('orbit-trial-codes', JSON.stringify(list)); },
+
+    create(data) {
+      const list  = TrialCodes.getAll();
+      const code  = String(data.code || '').toUpperCase().trim();
+      if (!code) return null;
+      if (list.some(c => c.code === code)) return { error: 'โค้ดซ้ำ' };
+      const entry = {
+        id: uid(), code,
+        durationDays: data.durationDays || 30,
+        plan:    data.plan    || 'pro',
+        maxUses: data.maxUses || 1,
+        discount: data.discount || 0,
+        note:    data.note    || '',
+        active:  true,
+        usedCount: 0,
+        usedBy: [],
+        createdAt: now(),
+      };
+      list.push(entry);
+      TrialCodes._save(list);
+      return entry;
+    },
+
+    validate(code) {
+      if (!code) return { valid: false, error: '' };
+      const entry = TrialCodes.getAll().find(c => c.code === code.toUpperCase().trim());
+      if (!entry)          return { valid: false, error: 'ไม่พบโค้ดนี้' };
+      if (!entry.active)   return { valid: false, error: 'โค้ดนี้ถูกปิดใช้งาน' };
+      if (entry.maxUses > 0 && entry.usedCount >= entry.maxUses)
+                           return { valid: false, error: 'โค้ดถูกใช้ครบแล้ว' };
+      return { valid: true, entry };
+    },
+
+    redeem(code, companyId, companyName) {
+      const list = TrialCodes.getAll();
+      const idx  = list.findIndex(c => c.code === code.toUpperCase().trim());
+      if (idx === -1) return null;
+      list[idx].usedCount++;
+      list[idx].usedBy.push({ companyId, companyName, usedAt: now() });
+      if (list[idx].maxUses > 0 && list[idx].usedCount >= list[idx].maxUses)
+        list[idx].active = false;
+      TrialCodes._save(list);
+      return list[idx];
+    },
+
+    toggle(id) {
+      const list = TrialCodes.getAll();
+      const idx  = list.findIndex(c => c.id === id);
+      if (idx !== -1) { list[idx].active = !list[idx].active; TrialCodes._save(list); }
+    },
+
+    delete(id) {
+      TrialCodes._save(TrialCodes.getAll().filter(c => c.id !== id));
+    },
+  };
+
+  /* ── Email Leads ─────────────────────────────── */
+  const Emails = {
+    getAll() { try { return JSON.parse(localStorage.getItem('orbit-emails') || '[]'); } catch { return []; } },
+    _save(list){ localStorage.setItem('orbit-emails', JSON.stringify(list)); },
+
+    collect(email, name = '', source = 'landing') {
+      if (!email) return false;
+      const list = Emails.getAll();
+      if (list.some(e => e.email.toLowerCase() === email.toLowerCase())) return 'dup';
+      list.push({ id: uid(), email: email.toLowerCase(), name, source, createdAt: now() });
+      Emails._save(list);
+      return true;
+    },
+
+    delete(id) {
+      Emails._save(Emails.getAll().filter(e => e.id !== id));
+    },
+  };
+
+  /* ── Owner Settings ──────────────────────────── */
+  const OwnerSettings = {
+    get() { try { return JSON.parse(localStorage.getItem('orbit-owner-settings') || '{}'); } catch { return {}; } },
+    save(data) { localStorage.setItem('orbit-owner-settings', JSON.stringify({ ...OwnerSettings.get(), ...data })); },
+    reset()    { localStorage.removeItem('orbit-owner-settings'); },
+  };
+
   /* ── Demo Seed ─────────────────────────────── */
   function seedDemo() {
     localStorage.clear();
@@ -831,5 +918,5 @@ const DB = (() => {
     return localDate(d);
   }
 
-  return { Companies, Users, LeaveTypes, Leaves, Attendance, Shifts, Schedules, Meetings, Announcements, Notifications, Payroll, Session, haversine, uid, today, addDays, getMonday, seedDemo };
+  return { Companies, Users, LeaveTypes, Leaves, Attendance, Shifts, Schedules, Meetings, Announcements, Notifications, Payroll, TrialCodes, Emails, OwnerSettings, Session, haversine, uid, today, addDays, getMonday, seedDemo };
 })();
