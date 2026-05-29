@@ -22,7 +22,10 @@ const DB = (() => {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
   function now() { return new Date().toISOString(); }
-  function today() { return new Date().toISOString().slice(0, 10); }
+  function localDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function today() { return localDate(new Date()); }
 
   function load(key) {
     try { return JSON.parse(localStorage.getItem(key) || '[]'); }
@@ -154,6 +157,11 @@ const DB = (() => {
         phone: data.phone || '',
         avatar: data.avatar || '',
         startDate: data.startDate || today(),
+        salary: data.salary || 0,
+        bankName: data.bankName || '',
+        bankAccount: data.bankAccount || '',
+        emergencyName: data.emergencyName || '',
+        emergencyPhone: data.emergencyPhone || '',
         status: 'active',
         createdAt: now(),
       };
@@ -536,9 +544,9 @@ const DB = (() => {
   };
 
   function addDays(dateStr, n) {
-    const d = new Date(dateStr);
+    const d = new Date(dateStr + 'T00:00:00');
     d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
+    return localDate(d);
   }
 
   /* ── Meetings ──────────────────────────────── */
@@ -709,6 +717,52 @@ const DB = (() => {
     },
   };
 
+  /* ── Payroll ───────────────────────────────── */
+  const Payroll = {
+    getByCompany(companyId, month) {
+      return load('orbit-payroll').filter(p => p.companyId === companyId && p.month === month);
+    },
+    getByUser(userId, month) {
+      return load('orbit-payroll').find(p => p.userId === userId && p.month === month) || null;
+    },
+    save(data) {
+      const list  = load('orbit-payroll');
+      const idx   = list.findIndex(p => p.userId === data.userId && p.month === data.month);
+      const entry = {
+        id:            idx >= 0 ? list[idx].id : uid(),
+        companyId:     data.companyId,
+        userId:        data.userId,
+        month:         data.month,
+        baseSalary:    data.baseSalary    || 0,
+        overtimePay:   data.overtimePay   || 0,
+        bonus:         data.bonus         || 0,
+        deductions:    data.deductions    || 0,
+        lateDeduction: data.lateDeduction || 0,
+        netPay:        (data.baseSalary||0) + (data.overtimePay||0) + (data.bonus||0)
+                       - (data.deductions||0) - (data.lateDeduction||0),
+        status:        data.status || 'draft',
+        note:          data.note || '',
+        updatedAt:     now(),
+        createdAt:     idx >= 0 ? list[idx].createdAt : now(),
+      };
+      if (idx >= 0) list[idx] = entry; else list.push(entry);
+      save('orbit-payroll', list);
+      return entry;
+    },
+    approve(companyId, month) {
+      const list = load('orbit-payroll');
+      list.forEach(p => {
+        if (p.companyId === companyId && p.month === month) {
+          p.status = 'approved'; p.approvedAt = now();
+        }
+      });
+      save('orbit-payroll', list);
+    },
+    deleteMonth(companyId, month) {
+      save('orbit-payroll', load('orbit-payroll').filter(p => !(p.companyId === companyId && p.month === month)));
+    },
+  };
+
   /* ── Demo Seed ─────────────────────────────── */
   function seedDemo() {
     localStorage.clear();
@@ -721,11 +775,11 @@ const DB = (() => {
       locations: [{ id: uid(), name: 'โรงแรมหลัก', lat: 13.7563, lng: 100.5018, radius: 300 }],
     });
 
-    const admin = Users.create({ companyId: company.id, name: 'คุณสมชาย ผู้จัดการ', email: 'admin@demo.com', password: 'demo1234', role: 'admin', department: 'บริหาร', position: 'ผู้จัดการทั่วไป' });
-    const hr    = Users.create({ companyId: company.id, name: 'คุณมาลี HR',         email: 'hr@demo.com',    password: 'demo1234', role: 'hr',    department: 'ทรัพยากรบุคคล', position: 'เจ้าหน้าที่ HR' });
-    const emp1  = Users.create({ companyId: company.id, name: 'คุณปริม แผนกต้อนรับ', role: 'employee', department: 'แผนกต้อนรับ', position: 'พนักงานต้อนรับ' });
-    const emp2  = Users.create({ companyId: company.id, name: 'คุณธนา แผนกอาหาร',   role: 'employee', department: 'แผนกอาหาร',   position: 'พ่อครัว' });
-    const emp3  = Users.create({ companyId: company.id, name: 'คุณนิดา แม่บ้าน',    role: 'employee', department: 'แผนกทำความสะอาด', position: 'แม่บ้าน' });
+    const admin = Users.create({ companyId: company.id, name: 'คุณสมชาย ผู้จัดการ', email: 'admin@demo.com', password: 'demo1234', role: 'admin', department: 'บริหาร', position: 'ผู้จัดการทั่วไป', salary: 55000, bankName: 'กสิกรไทย', bankAccount: '123-4-56789-0' });
+    const hr    = Users.create({ companyId: company.id, name: 'คุณมาลี HR',         email: 'hr@demo.com',    password: 'demo1234', role: 'hr',    department: 'ทรัพยากรบุคคล', position: 'เจ้าหน้าที่ HR', salary: 35000, bankName: 'ไทยพาณิชย์', bankAccount: '456-7-89012-3' });
+    const emp1  = Users.create({ companyId: company.id, name: 'คุณปริม แผนกต้อนรับ', role: 'employee', department: 'แผนกต้อนรับ', position: 'พนักงานต้อนรับ', salary: 18000, bankName: 'กรุงไทย', bankAccount: '789-0-12345-6' });
+    const emp2  = Users.create({ companyId: company.id, name: 'คุณธนา แผนกอาหาร',   role: 'employee', department: 'แผนกอาหาร',   position: 'พ่อครัว', salary: 22000, bankName: 'กสิกรไทย', bankAccount: '012-3-45678-9' });
+    const emp3  = Users.create({ companyId: company.id, name: 'คุณนิดา แม่บ้าน',    role: 'employee', department: 'แผนกทำความสะอาด', position: 'แม่บ้าน', salary: 15000, bankName: 'กรุงเทพ', bankAccount: '345-6-78901-2' });
 
     LeaveTypes.seedDefaults(company.id);
     Shifts.seedDefaults(company.id);
@@ -771,12 +825,11 @@ const DB = (() => {
   }
 
   function getMonday(dateStr) {
-    const d = new Date(dateStr);
+    const d = new Date(dateStr + 'T00:00:00');
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
-    return d.toISOString().slice(0,10);
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    return localDate(d);
   }
 
-  return { Companies, Users, LeaveTypes, Leaves, Attendance, Shifts, Schedules, Meetings, Announcements, Notifications, Session, haversine, uid, today, addDays, getMonday, seedDemo };
+  return { Companies, Users, LeaveTypes, Leaves, Attendance, Shifts, Schedules, Meetings, Announcements, Notifications, Payroll, Session, haversine, uid, today, addDays, getMonday, seedDemo };
 })();

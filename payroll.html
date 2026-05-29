@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เงินเดือน — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="main-content">
+    <header class="top-header" id="page-header"></header>
+    <main class="page-content" id="main"></main>
+  </div>
+</div>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: Edit payroll entry -->
+<div class="modal-overlay" id="modal-pay">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="pay-modal-title">แก้ไขเงินเดือน</span>
+      <button class="modal-close" onclick="Modal.close('modal-pay')">✕</button>
+    </div>
+    <div class="modal-body" id="pay-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Modal.close('modal-pay')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="savePayEntry()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const user = initPage('payroll', 'เงินเดือน');
+if (user && !Auth.canApproveLeave(user)) window.location.href = 'dashboard.html';
+
+const OT_RATE  = 1.5;
+const LATE_PEN = 50;
+
+let selectedMonth = DB.today().slice(0, 7);
+let editingUserId = null;
+
+if (user) render();
+
+/* ── Helpers ── */
+function calcOTPay(emp, month) {
+  const att = DB.Attendance.getByCompany(user.companyId, { userId: emp.id, month });
+  const totalOT = att.reduce((s, a) => s + (a.overtimeMinutes || 0), 0);
+  const hourly  = (emp.salary || 0) / (26 * 8);
+  return Math.round(totalOT / 60 * hourly * OT_RATE);
+}
+
+function calcLateDeduction(emp, month) {
+  const att = DB.Attendance.getByCompany(user.companyId, { userId: emp.id, month });
+  const lates = att.filter(a => a.status === 'late').length;
+  return lates * LATE_PEN;
+}
+
+function getOrBuildEntry(emp, month) {
+  const existing = DB.Payroll.getByUser(emp.id, month);
+  if (existing) return existing;
+  const otPay    = calcOTPay(emp, month);
+  const lateDed  = calcLateDeduction(emp, month);
+  return {
+    userId:        emp.id,
+    companyId:     emp.companyId,
+    month,
+    baseSalary:    emp.salary || 0,
+    overtimePay:   otPay,
+    bonus:         0,
+    deductions:    0,
+    lateDeduction: lateDed,
+    netPay:        (emp.salary || 0) + otPay - lateDed,
+    status:        'draft',
+    note:          '',
+  };
+}
+
+function payStatusBadge(status) {
+  const map = {
+    draft:    '<span class="badge badge-neutral">ร่าง</span>',
+    approved: '<span class="badge badge-success">อนุมัติแล้ว</span>',
+  };
+  return map[status] || map.draft;
+}
+
+/* ── Main render ── */
+function render() {
+  const months  = getLast12Months();
+  const employees = DB.Users.getByCompany(user.companyId)
+    .filter(u => u.status === 'active')
+    .sort((a,b) => a.name.localeCompare(b.name, 'th'));
+
+  const entries = employees.map(e => getOrBuildEntry(e, selectedMonth));
+  const totalNet = entries.reduce((s, e) => s + e.netPay, 0);
+  const totalBase = entries.reduce((s, e) => s + e.baseSalary, 0);
+  const totalOT   = entries.reduce((s, e) => s + e.overtimePay, 0);
+  const totalDed  = entries.reduce((s, e) => s + e.deductions + e.lateDeduction, 0);
+  const allApproved = entries.every(e => e.status === 'approved');
+  const anyApproved = entries.some(e => e.status === 'approved');
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <!-- Filter bar -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-body" style="padding:14px 20px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:13px;font-weight:500">เดือน:</label>
+          <select class="form-select" style="width:auto" id="month-picker" onchange="selectedMonth=this.value;render()">
+            ${months.map(m => `<option value="${m.value}" ${m.value === selectedMonth ? 'selected' : ''}>${m.label}</option>`).join('')}
+          </select>
+          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+            ${!allApproved ? `<button class="btn btn-primary" onclick="generateAll()">
+              ${iconSVG('zap','14')} คำนวณทั้งหมด
+            </button>` : ''}
+            ${anyApproved ? `<button class="btn btn-secondary" onclick="exportPayroll()">
+              ${iconSVG('download','14')} Export CSV
+            </button>` : ''}
+            ${!allApproved && entries.some(e => e.status === 'draft' && e.baseSalary > 0) ? `
+            <button class="btn btn-primary" style="background:#10B981;border-color:#10B981" onclick="approveAll()">
+              ${iconSVG('check-circle','14')} อนุมัติทั้งหมด
+            </button>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="grid grid-4" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#EEF2FF;color:#4F46E5">${iconSVG('users','18')}</div>
+        <div class="stat-value">${employees.length}</div>
+        <div class="stat-label">พนักงาน</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#ECFDF5;color:#10B981">${iconSVG('dollar-sign','18')}</div>
+        <div class="stat-value" style="font-size:18px">${fmt(totalBase)}</div>
+        <div class="stat-label">เงินเดือนรวม</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#FFFBEB;color:#F59E0B">${iconSVG('trending-up','18')}</div>
+        <div class="stat-value" style="font-size:18px;color:var(--accent)">${fmt(totalOT)}</div>
+        <div class="stat-label">ค่า OT รวม</div>
+      </div>
+      <div class="stat-card stat-card-hero">
+        <div class="stat-icon" style="background:rgba(79,70,229,.15);color:#fff">${iconSVG('credit-card','18')}</div>
+        <div class="stat-value" style="font-size:20px;color:#fff">${fmt(totalNet)}</div>
+        <div class="stat-label" style="color:rgba(255,255,255,.75)">ยอดจ่ายสุทธิ</div>
+      </div>
+    </div>
+
+    <!-- Payroll table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">รายละเอียดเงินเดือนประจำเดือน</span>
+        ${anyApproved ? payStatusBadge('approved') : payStatusBadge('draft')}
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left;padding-left:16px">พนักงาน</th>
+              <th>เงินเดือนฐาน</th>
+              <th>OT</th>
+              <th>โบนัส</th>
+              <th>หักสาย</th>
+              <th>หักอื่น</th>
+              <th>สุทธิ</th>
+              <th>สถานะ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${employees.map((emp, i) => {
+              const e = entries[i];
+              return `
+              <tr>
+                <td style="padding:10px 16px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    ${renderAvatar(emp, 'sm')}
+                    <div>
+                      <div style="font-weight:500;font-size:13px">${emp.name}</div>
+                      <div style="font-size:11px;color:var(--text-muted)">${emp.department || ''}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align:right;font-weight:500">${fmt(e.baseSalary)}</td>
+                <td style="text-align:right;color:var(--accent)">${e.overtimePay > 0 ? '+'+fmt(e.overtimePay) : '—'}</td>
+                <td style="text-align:right;color:#10B981">${e.bonus > 0 ? '+'+fmt(e.bonus) : '—'}</td>
+                <td style="text-align:right;color:var(--danger)">${e.lateDeduction > 0 ? '-'+fmt(e.lateDeduction) : '—'}</td>
+                <td style="text-align:right;color:var(--danger)">${e.deductions > 0 ? '-'+fmt(e.deductions) : '—'}</td>
+                <td style="text-align:right;font-weight:700;font-size:14px">${fmt(e.netPay)}</td>
+                <td style="text-align:center">${payStatusBadge(e.status)}</td>
+                <td style="text-align:center">
+                  ${e.status !== 'approved' ? `
+                  <button class="btn btn-ghost btn-sm btn-icon" onclick="openEdit('${emp.id}')" title="แก้ไข">
+                    ${iconSVG('edit-2','14')}
+                  </button>` : ''}
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--bg-secondary);font-weight:700">
+              <td style="padding:12px 16px">รวมทั้งหมด</td>
+              <td style="text-align:right">${fmt(totalBase)}</td>
+              <td style="text-align:right;color:var(--accent)">${totalOT > 0 ? '+'+fmt(totalOT) : '—'}</td>
+              <td style="text-align:right;color:#10B981">—</td>
+              <td colspan="2" style="text-align:right;color:var(--danger)">${totalDed > 0 ? '-'+fmt(totalDed) : '—'}</td>
+              <td style="text-align:right;font-size:15px;color:var(--primary)">${fmt(totalNet)}</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <div style="margin-top:12px;font-size:12px;color:var(--text-muted);line-height:1.6">
+      หมายเหตุ: OT คำนวณจาก ชั่วโมง OT × (เงินเดือน ÷ 26วัน ÷ 8ชม.) × 1.5 · หักสาย = ${LATE_PEN} บาท/ครั้ง
+    </div>
+  `;
+}
+
+/* ── Generate All ── */
+function generateAll() {
+  const employees = DB.Users.getByCompany(user.companyId).filter(u => u.status === 'active');
+  employees.forEach(emp => {
+    const entry = getOrBuildEntry(emp, selectedMonth);
+    if (entry.status !== 'approved') DB.Payroll.save(entry);
+  });
+  Toast.success('คำนวณเงินเดือนเรียบร้อย');
+  render();
+}
+
+/* ── Approve All ── */
+function approveAll() {
+  confirmDialog('อนุมัติเงินเดือนทั้งหมดเดือนนี้?', () => {
+    generateAll();
+    DB.Payroll.approve(user.companyId, selectedMonth);
+    Toast.success('อนุมัติเงินเดือนแล้ว');
+    render();
+  }, false);
+}
+
+/* ── Open Edit Modal ── */
+function openEdit(empId) {
+  const emp   = DB.Users.get(empId);
+  if (!emp) return;
+  editingUserId = empId;
+  const entry = getOrBuildEntry(emp, selectedMonth);
+  document.getElementById('pay-modal-title').textContent = `แก้ไขเงินเดือน — ${emp.name}`;
+  document.getElementById('pay-modal-body').innerHTML = `
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">เงินเดือนฐาน (฿)</label>
+        <input type="number" id="p-base" class="form-control" value="${entry.baseSalary}" min="0" step="100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ค่า OT (฿) <span style="font-size:11px;color:var(--text-muted)">(คำนวณอัตโนมัติ)</span></label>
+        <input type="number" id="p-ot" class="form-control" value="${entry.overtimePay}" min="0" step="50">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">โบนัส (฿)</label>
+        <input type="number" id="p-bonus" class="form-control" value="${entry.bonus}" min="0" step="100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หักอื่น (฿)</label>
+        <input type="number" id="p-ded" class="form-control" value="${entry.deductions}" min="0" step="50">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">หักสาย (฿) <span style="font-size:11px;color:var(--text-muted)">(คำนวณอัตโนมัติ)</span></label>
+        <input type="number" id="p-late" class="form-control" value="${entry.lateDeduction}" min="0" step="50">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" id="p-note" class="form-control" value="${entry.note || ''}" placeholder="ระบุเพิ่มเติม...">
+      </div>
+    </div>
+    <div style="background:var(--bg-secondary);border-radius:10px;padding:14px 18px;margin-top:4px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">ยอดสุทธิ (ประมาณ)</div>
+      <div style="font-size:22px;font-weight:700;color:var(--primary)" id="pay-preview">฿${fmt(entry.netPay)}</div>
+    </div>
+  `;
+  ['p-base','p-ot','p-bonus','p-ded','p-late'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updatePreview);
+  });
+  Modal.open('modal-pay');
+}
+
+function updatePreview() {
+  const base  = Number(document.getElementById('p-base')?.value)  || 0;
+  const ot    = Number(document.getElementById('p-ot')?.value)    || 0;
+  const bonus = Number(document.getElementById('p-bonus')?.value) || 0;
+  const ded   = Number(document.getElementById('p-ded')?.value)   || 0;
+  const late  = Number(document.getElementById('p-late')?.value)  || 0;
+  const net   = base + ot + bonus - ded - late;
+  const el = document.getElementById('pay-preview');
+  if (el) el.textContent = '฿' + fmt(net);
+}
+
+function savePayEntry() {
+  const emp   = DB.Users.get(editingUserId);
+  if (!emp) return;
+  const base  = Number(document.getElementById('p-base').value)  || 0;
+  const ot    = Number(document.getElementById('p-ot').value)    || 0;
+  const bonus = Number(document.getElementById('p-bonus').value) || 0;
+  const ded   = Number(document.getElementById('p-ded').value)   || 0;
+  const late  = Number(document.getElementById('p-late').value)  || 0;
+  const note  = document.getElementById('p-note').value.trim();
+  DB.Payroll.save({ userId: emp.id, companyId: emp.companyId, month: selectedMonth, baseSalary: base, overtimePay: ot, bonus, deductions: ded, lateDeduction: late, note, status: 'draft' });
+  if (base !== emp.salary) DB.Users.update(emp.id, { salary: base });
+  Modal.close('modal-pay');
+  Toast.success('บันทึกข้อมูลเงินเดือนแล้ว');
+  render();
+}
+
+/* ── Export CSV ── */
+function exportPayroll() {
+  const employees = DB.Users.getByCompany(user.companyId).filter(u => u.status === 'active');
+  const entries   = employees.map(e => getOrBuildEntry(e, selectedMonth));
+  const header = ['รหัสพนักงาน','ชื่อ-นามสกุล','แผนก','ตำแหน่ง','เลขบัญชี','ธนาคาร','เงินเดือนฐาน','ค่า OT','โบนัส','หักสาย','หักอื่น','ยอดสุทธิ','สถานะ'];
+  const rows = employees.map((emp, i) => {
+    const e = entries[i];
+    const statusTh = { draft: 'ร่าง', approved: 'อนุมัติแล้ว' };
+    return [emp.employeeCode||'', emp.name, emp.department||'', emp.position||'', emp.bankAccount||'', emp.bankName||'', e.baseSalary, e.overtimePay, e.bonus, e.lateDeduction, e.deductions, e.netPay, statusTh[e.status]||e.status];
+  });
+  const csv = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  downloadCSV(csv, `payroll_${selectedMonth}.csv`);
+  Toast.success('Export เงินเดือนสำเร็จ');
+}
+
+/* ── Months picker ── */
+function getLast12Months() {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    months.push({ value: val, label: d.toLocaleDateString('th-TH', { year:'numeric', month:'long' }) });
+  }
+  return months;
+}
+</script>
+</body>
+</html>

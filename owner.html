@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform Admin — Orbit HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07080F;--surface:#0F1117;--surface2:#161820;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --text:#E8E9F0;--text2:rgba(232,233,240,.6);--text3:rgba(232,233,240,.35);
+  --primary:#6366F1;--green:#10B981;--orange:#F59E0B;--red:#F87171;--blue:#3B82F6;
+  --r:12px;--font:'Inter','Noto Sans Thai',sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* ── Lock screen ── */
+#lock-screen{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+  justify-content:center;z-index:1000;flex-direction:column;gap:24px;
+}
+.lock-card{
+  background:var(--surface);border:1px solid var(--border2);border-radius:20px;
+  padding:40px;width:100%;max-width:360px;text-align:center;
+}
+.lock-logo{
+  width:56px;height:56px;border-radius:16px;background:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  font-weight:800;color:#fff;margin:0 auto 20px;
+}
+.lock-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.lock-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+.lock-input{
+  width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:10px;font-size:15px;color:var(--text);font-family:var(--font);
+  letter-spacing:3px;text-align:center;outline:none;transition:border-color .15s;
+}
+.lock-input:focus{border-color:var(--primary)}
+.lock-btn{
+  width:100%;margin-top:14px;padding:12px;background:var(--primary);color:#fff;
+  border:none;border-radius:10px;font-size:15px;font-weight:600;font-family:var(--font);
+  cursor:pointer;transition:opacity .15s;
+}
+.lock-btn:hover{opacity:.88}
+.lock-err{font-size:12px;color:var(--red);margin-top:8px;min-height:18px}
+
+/* ── Dashboard layout ── */
+#dashboard{display:none}
+.o-layout{display:flex;min-height:100vh}
+
+/* Sidebar */
+.o-sidebar{
+  width:220px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:24px 0;position:fixed;
+  top:0;left:0;height:100vh;
+}
+.o-logo{display:flex;align-items:center;gap:10px;padding:0 20px 28px}
+.o-logo-icon{width:32px;height:32px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff}
+.o-logo-text{font-size:15px;font-weight:700;color:var(--text)}
+.o-logo-badge{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--primary);background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.25);padding:2px 6px;border-radius:6px;margin-left:auto}
+.o-nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;
+  font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;border:none;
+  background:none;width:100%;text-align:left;font-family:var(--font);
+}
+.o-nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.o-nav-item.active{color:var(--primary);background:rgba(99,102,241,.1)}
+.o-nav-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.o-sidebar-footer{margin-top:auto;padding:0 20px}
+.o-signout{
+  display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text3);
+  cursor:pointer;padding:10px 0;transition:color .15s;border:none;background:none;
+  font-family:var(--font);width:100%;
+}
+.o-signout:hover{color:var(--red)}
+
+/* Main area */
+.o-main{margin-left:220px;flex:1;padding:32px;overflow-y:auto}
+
+/* Cards */
+.o-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+@media(max-width:1100px){.o-kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.o-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.o-card-title{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:16px}
+
+.o-kpi{position:relative;overflow:hidden}
+.o-kpi-label{font-size:12px;color:var(--text2);margin-bottom:6px}
+.o-kpi-value{font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.o-kpi-sub{font-size:11px;color:var(--text3)}
+.o-kpi-accent{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+
+.o-section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.o-section-title{font-size:15px;font-weight:600}
+
+.o-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:900px){.o-grid-2{grid-template-columns:1fr}}
+
+/* Company table */
+.o-table{width:100%;border-collapse:collapse;font-size:13px}
+.o-table th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border)}
+.o-table td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
+.o-table tr:last-child td{border-bottom:none}
+.o-table tr:hover td{background:rgba(255,255,255,.025);color:var(--text)}
+.o-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.o-badge-green{background:rgba(16,185,129,.15);color:#34D399;border:1px solid rgba(16,185,129,.2)}
+.o-badge-orange{background:rgba(245,158,11,.12);color:#FCD34D;border:1px solid rgba(245,158,11,.18)}
+.o-badge-gray{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border)}
+
+/* Activity feed */
+.o-feed-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.o-feed-item:last-child{border-bottom:none}
+.o-feed-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.o-feed-title{font-size:13px;color:var(--text)}
+.o-feed-time{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* Health bar */
+.o-health-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.o-health-label{font-size:12px;color:var(--text2);width:120px;flex-shrink:0}
+.o-health-bar{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.o-health-fill{height:100%;border-radius:3px}
+.o-health-pct{font-size:12px;font-weight:600;color:var(--text);width:36px;text-align:right}
+
+/* Animations */
+@keyframes o-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.o-kpi{animation:o-fade .4s both}
+.o-kpi:nth-child(1){animation-delay:.05s}
+.o-kpi:nth-child(2){animation-delay:.1s}
+.o-kpi:nth-child(3){animation-delay:.15s}
+.o-kpi:nth-child(4){animation-delay:.2s}
+
+@media(max-width:768px){
+  .o-sidebar{display:none}
+  .o-main{margin-left:0;padding:16px}
+  .o-kpi-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Lock Screen -->
+<div id="lock-screen">
+  <div class="lock-card">
+    <div class="lock-logo">O</div>
+    <div class="lock-title">Platform Admin</div>
+    <div class="lock-sub">Orbit HR · Owner Dashboard<br>ป้อน access code เพื่อเข้าใช้งาน</div>
+    <input type="password" class="lock-input" id="access-code" placeholder="••••••••"
+           onkeydown="if(event.key==='Enter')unlock()">
+    <button class="lock-btn" onclick="unlock()">เข้าสู่ระบบ</button>
+    <div class="lock-err" id="lock-err"></div>
+  </div>
+  <div style="font-size:11px;color:rgba(255,255,255,.2)">Demo access code: <strong style="color:rgba(255,255,255,.4)">ORBIT2026</strong></div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+<div class="o-layout">
+  <!-- Sidebar -->
+  <div class="o-sidebar">
+    <div class="o-logo">
+      <div class="o-logo-icon">O</div>
+      <span class="o-logo-text">Orbit HR</span>
+      <span class="o-logo-badge">Owner</span>
+    </div>
+    <button class="o-nav-item active" onclick="showSection('overview',this)"><span class="o-nav-dot"></span>ภาพรวม</button>
+    <button class="o-nav-item" onclick="showSection('companies',this)"><span class="o-nav-dot"></span>บริษัท</button>
+    <button class="o-nav-item" onclick="showSection('users',this)"><span class="o-nav-dot"></span>ผู้ใช้งาน</button>
+    <button class="o-nav-item" onclick="showSection('health',this)"><span class="o-nav-dot"></span>ระบบ</button>
+    <div class="o-sidebar-footer">
+      <button class="o-signout" onclick="lockDashboard()">⬡ ออกจากระบบ Owner</button>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="o-main" id="o-main">
+    <!-- rendered by JS -->
+  </div>
+</div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script>
+const OWNER_CODE = 'ORBIT2026';
+
+function unlock() {
+  const code = document.getElementById('access-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('lock-err');
+  if (code !== OWNER_CODE) {
+    errEl.textContent = 'Access code ไม่ถูกต้อง';
+    return;
+  }
+  errEl.textContent = '';
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  renderSection('overview');
+}
+
+function lockDashboard() {
+  document.getElementById('lock-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('access-code').value = '';
+}
+
+function showSection(name, btn) {
+  document.querySelectorAll('.o-nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSection(name);
+}
+
+/* ── Data helpers ── */
+function getAllData() {
+  const companies = DB.Companies.getAll();
+  const users     = DB.Users.getAll();
+  const att       = JSON.parse(localStorage.getItem('orbit-attendance') || '[]');
+  const leaves    = JSON.parse(localStorage.getItem('orbit-leaves') || '[]');
+  const notifs    = JSON.parse(localStorage.getItem('orbit-notifications') || '[]');
+  return { companies, users, att, leaves, notifs };
+}
+
+function fmt(n) { return Number(n||0).toLocaleString('th-TH'); }
+
+function timeAgoOwner(isoStr) {
+  if (!isoStr) return '';
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'เมื่อกี้';
+  if (mins < 60) return `${mins} นาทีที่แล้ว`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} ชม.ที่แล้ว`;
+  return `${Math.floor(hrs/24)} วันที่แล้ว`;
+}
+
+function planLabel(plan) {
+  return { trial:'Trial 14 วัน', starter:'Starter', pro:'Pro', enterprise:'Enterprise' }[plan] || plan || 'Trial';
+}
+
+function planBadge(plan) {
+  if (!plan || plan === 'trial') return `<span class="o-badge o-badge-orange">Trial</span>`;
+  if (plan === 'enterprise')     return `<span class="o-badge o-badge-green">Enterprise</span>`;
+  return `<span class="o-badge o-badge-green">${planLabel(plan)}</span>`;
+}
+
+/* ── Sections ── */
+function renderSection(name) {
+  const main = document.getElementById('o-main');
+  if (name === 'overview')   main.innerHTML = renderOverview();
+  if (name === 'companies')  main.innerHTML = renderCompanies();
+  if (name === 'users')      main.innerHTML = renderUsers();
+  if (name === 'health')     main.innerHTML = renderHealth();
+  if (name === 'overview')   setTimeout(drawCharts, 100);
+}
+
+/* ── Overview ── */
+function renderOverview() {
+  const { companies, users, att, leaves, notifs } = getAllData();
+  const activeCompanies = companies.filter(c => {
+    const trial = c.trialEnds ? new Date(c.trialEnds) > new Date() : true;
+    return trial || c.plan !== 'trial';
+  });
+  const today = DB.today();
+  const todayAtt = att.filter(a => a.date === today);
+  const pendingLeaves = leaves.filter(l => l.status === 'pending');
+
+  const last7 = Array.from({length:7}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6-i));
+    return DB.today().slice(0,7) + '-' + String(d.getDate()).padStart(2,'0');
+  });
+
+  const recentActivity = [...companies]
+    .sort((a,b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0,8);
+
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">Platform Overview</h1>
+    <p style="font-size:13px;color:var(--text2)">ภาพรวมทั้งระบบ Orbit HR · วันที่ ${new Date().toLocaleDateString('th-TH',{dateStyle:'long'})}</p>
+  </div>
+
+  <div class="o-kpi-grid">
+    <div class="o-card o-kpi">
+      <div class="o-kpi-accent" style="background:rgba(99,102,241,.12);color:var(--primary)">🏢</div>
+      <div class="o-kpi-label">บริษัททั้งหมด</div>
+      <div class="o-kpi-value">${companies.length}</div>
+      <div class="o-kpi-sub">${activeCompanies.length} ใช้งานอยู่</div>
+    </div>
+    <div class="o-card o-kpi">
+      <div class="o-kpi-accent" style="background:rgba(16,185,129,.12);color:var(--green)">👥</div>
+      <div class="o-kpi-label">ผู้ใช้งานทั้งหมด</div>
+      <div class="o-kpi-value">${users.length}</div>
+      <div class="o-kpi-sub">${users.filter(u => u.status === 'active').length} active</div>
+    </div>
+    <div class="o-card o-kpi">
+      <div class="o-kpi-accent" style="background:rgba(245,158,11,.12);color:var(--orange)">📍</div>
+      <div class="o-kpi-label">เช็คอินวันนี้</div>
+      <div class="o-kpi-value">${todayAtt.length}</div>
+      <div class="o-kpi-sub">${todayAtt.filter(a=>a.status==='late').length} คนสาย</div>
+    </div>
+    <div class="o-card o-kpi">
+      <div class="o-kpi-accent" style="background:rgba(248,113,113,.12);color:var(--red)">📋</div>
+      <div class="o-kpi-label">รอการอนุมัติลา</div>
+      <div class="o-kpi-value">${pendingLeaves.length}</div>
+      <div class="o-kpi-sub">คำขอลา pending</div>
+    </div>
+  </div>
+
+  <div class="o-grid-2">
+    <div class="o-card">
+      <div class="o-card-title">การเช็คอิน 7 วันที่ผ่านมา</div>
+      <canvas id="att-chart" height="180"></canvas>
+    </div>
+    <div class="o-card">
+      <div class="o-card-title">บริษัทที่สมัครล่าสุด</div>
+      ${recentActivity.map(c => `
+      <div class="o-feed-item">
+        <div class="o-feed-dot" style="background:var(--primary)"></div>
+        <div>
+          <div class="o-feed-title">${c.name} <span style="font-size:11px;color:var(--text3)">${planLabel(c.plan)}</span></div>
+          <div class="o-feed-time">${c.industry || 'ไม่ระบุประเภท'} · ${timeAgoOwner(c.createdAt)}</div>
+        </div>
+      </div>`).join('')}
+      ${recentActivity.length === 0 ? '<div style="text-align:center;padding:24px;font-size:13px;color:var(--text3)">ยังไม่มีข้อมูล</div>' : ''}
+    </div>
+  </div>
+
+  <div class="o-card">
+    <div class="o-section-hdr">
+      <div class="o-section-title">บริษัทในระบบ</div>
+      <span style="font-size:12px;color:var(--text3)">${companies.length} บริษัท</span>
+    </div>
+    <table class="o-table">
+      <thead><tr>
+        <th>บริษัท</th>
+        <th>รหัส</th>
+        <th>ประเภท</th>
+        <th>พนักงาน</th>
+        <th>แผน</th>
+        <th>สถานะ</th>
+        <th>สมัคร</th>
+      </tr></thead>
+      <tbody>
+        ${companies.map(c => {
+          const empCount = users.filter(u => u.companyId === c.id && u.status === 'active').length;
+          const isActive = !c.trialEnds || new Date(c.trialEnds) > new Date() || c.plan !== 'trial';
+          return `<tr>
+            <td style="font-weight:500;color:var(--text)">${c.name}</td>
+            <td><code style="font-size:12px;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:5px">${c.code}</code></td>
+            <td>${c.industry || '—'}</td>
+            <td style="text-align:center">${empCount}</td>
+            <td>${planBadge(c.plan)}</td>
+            <td>${isActive ? '<span class="o-badge o-badge-green">Active</span>' : '<span class="o-badge o-badge-gray">Expired</span>'}</td>
+            <td>${new Date(c.createdAt).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'})}</td>
+          </tr>`;
+        }).join('')}
+        ${companies.length === 0 ? '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">ยังไม่มีบริษัท — ลองกด Demo Data ที่หน้า Login</td></tr>' : ''}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function drawCharts() {
+  const { att } = getAllData();
+  const days = [];
+  const labels = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push(ds);
+    labels.push(d.toLocaleDateString('th-TH',{weekday:'short',day:'numeric'}));
+  }
+  const counts  = days.map(d => att.filter(a => a.date === d).length);
+  const lateCts = days.map(d => att.filter(a => a.date === d && a.status === 'late').length);
+
+  const ctx = document.getElementById('att-chart');
+  if (!ctx) return;
+  if (ctx._ci) ctx._ci.destroy();
+  ctx._ci = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'เข้างาน', data: counts,  backgroundColor: 'rgba(99,102,241,.7)', borderRadius: 4 },
+        { label: 'สาย',    data: lateCts, backgroundColor: 'rgba(245,158,11,.7)',  borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: 'rgba(232,233,240,.6)', boxWidth: 10, font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(232,233,240,.45)', font: { size: 10 } } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(232,233,240,.45)', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+/* ── Companies ── */
+function renderCompanies() {
+  const { companies, users } = getAllData();
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">บริษัทในระบบ</h1>
+    <p style="font-size:13px;color:var(--text2)">${companies.length} บริษัท / องค์กร</p>
+  </div>
+  ${companies.map(c => {
+    const empCount  = users.filter(u => u.companyId === c.id && u.status === 'active').length;
+    const admins    = users.filter(u => u.companyId === c.id && ['admin','hr'].includes(u.role));
+    const trialDays = c.trialEnds ? Math.max(0, Math.ceil((new Date(c.trialEnds)-new Date())/86400000)) : 0;
+    const isActive  = !c.trialEnds || new Date(c.trialEnds) > new Date() || c.plan !== 'trial';
+    return `
+    <div class="o-card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:4px">${c.name}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:10px">${c.industry || 'ไม่ระบุประเภท'} · รหัส: <code style="background:rgba(255,255,255,.08);padding:1px 7px;border-radius:5px;font-size:12px">${c.code}</code></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${planBadge(c.plan)}
+            ${isActive ? '<span class="o-badge o-badge-green">Active</span>' : '<span class="o-badge o-badge-gray">Expired</span>'}
+            ${c.plan === 'trial' && trialDays > 0 ? `<span class="o-badge o-badge-orange">Trial ${trialDays} วัน</span>` : ''}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center">
+          <div>
+            <div style="font-size:22px;font-weight:700">${empCount}</div>
+            <div style="font-size:11px;color:var(--text3)">พนักงาน</div>
+          </div>
+          <div>
+            <div style="font-size:22px;font-weight:700">${admins.length}</div>
+            <div style="font-size:11px;color:var(--text3)">Admin/HR</div>
+          </div>
+          <div>
+            <div style="font-size:22px;font-weight:700">${(c.locations||[]).length}</div>
+            <div style="font-size:11px;color:var(--text3)">สถานที่</div>
+          </div>
+        </div>
+      </div>
+      ${admins.length > 0 ? `
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)">
+        Admin: ${admins.map(a => `<span style="color:var(--text2)">${a.name}</span>`).join(' · ')}
+      </div>` : ''}
+    </div>`;
+  }).join('')}
+  ${companies.length === 0 ? '<div class="o-card" style="text-align:center;padding:48px;color:var(--text3)">ยังไม่มีบริษัท</div>' : ''}`;
+}
+
+/* ── Users ── */
+function renderUsers() {
+  const { users, companies } = getAllData();
+  const coMap = Object.fromEntries(companies.map(c => [c.id, c]));
+  const active = users.filter(u => u.status === 'active');
+  const roleCount = {};
+  active.forEach(u => { roleCount[u.role] = (roleCount[u.role]||0)+1; });
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">ผู้ใช้งานทั้งหมด</h1>
+    <p style="font-size:13px;color:var(--text2)">${active.length} active users</p>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+    ${Object.entries(roleCount).map(([role,count]) => `
+    <div class="o-card" style="padding:14px 20px;min-width:100px;text-align:center">
+      <div style="font-size:20px;font-weight:700">${count}</div>
+      <div style="font-size:11px;color:var(--text3)">${{admin:'Admin',hr:'HR',manager:'Manager',employee:'Employee'}[role]||role}</div>
+    </div>`).join('')}
+  </div>
+  <div class="o-card">
+    <table class="o-table">
+      <thead><tr><th>ชื่อ</th><th>สิทธิ์</th><th>บริษัท</th><th>แผนก</th><th>สถานะ</th><th>สมัคร</th></tr></thead>
+      <tbody>
+        ${active.slice(0,50).map(u => {
+          const co = coMap[u.companyId];
+          const roleColors = {admin:'#F87171',hr:'#A78BFA',manager:'#FCD34D',employee:'#94A3B8'};
+          return `<tr>
+            <td style="font-weight:500;color:var(--text)">${u.name}</td>
+            <td><span style="font-size:11px;font-weight:600;color:${roleColors[u.role]||'#94A3B8'}">${u.role?.toUpperCase()}</span></td>
+            <td style="font-size:12px">${co?.name||'—'}</td>
+            <td style="font-size:12px">${u.department||'—'}</td>
+            <td><span class="o-badge o-badge-green">Active</span></td>
+            <td style="font-size:12px">${new Date(u.createdAt).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    ${active.length > 50 ? `<div style="text-align:center;padding:12px;font-size:12px;color:var(--text3)">แสดง 50 / ${active.length} คน</div>` : ''}
+  </div>`;
+}
+
+/* ── Health ── */
+function renderHealth() {
+  const { companies, users, att, leaves, notifs } = getAllData();
+  const lsKeys = Object.keys(localStorage).filter(k => k.startsWith('orbit-'));
+  const lsSize = lsKeys.reduce((s,k) => s + (localStorage.getItem(k)||'').length, 0);
+  const lsKB   = (lsSize / 1024).toFixed(1);
+  const maxKB  = 5120;
+  const usePct = Math.round(lsSize / (maxKB * 1024) * 100);
+
+  return `
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">System Health</h1>
+    <p style="font-size:13px;color:var(--text2)">สถานะระบบและการใช้ทรัพยากร</p>
+  </div>
+
+  <div class="o-grid-2">
+    <div class="o-card">
+      <div class="o-card-title">Storage Usage (localStorage)</div>
+      <div style="font-size:28px;font-weight:700;margin-bottom:6px">${lsKB} <span style="font-size:16px;font-weight:400;color:var(--text2)">KB</span></div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">จาก ${maxKB} KB (${usePct}%)</div>
+      <div style="height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(usePct,100)}%;background:${usePct>80?'var(--red)':usePct>50?'var(--orange)':'var(--green)'};border-radius:4px"></div>
+      </div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+        ${lsKeys.map(k => {
+          const size = ((localStorage.getItem(k)||'').length / 1024).toFixed(1);
+          const pct  = Math.round((localStorage.getItem(k)||'').length / lsSize * 100);
+          return `
+          <div class="o-health-row">
+            <div class="o-health-label" style="font-size:11px">${k.replace('orbit-','')}</div>
+            <div class="o-health-bar"><div class="o-health-fill" style="width:${pct}%;background:var(--primary)"></div></div>
+            <div class="o-health-pct" style="font-size:11px">${size}KB</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="o-card">
+      <div class="o-card-title">สถิติข้อมูล</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        ${[
+          ['บริษัท',companies.length,'#6366F1'],
+          ['ผู้ใช้งาน',users.length,'#10B981'],
+          ['บันทึกเช็คอิน',att.length,'#F59E0B'],
+          ['คำขอลา',leaves.length,'#3B82F6'],
+          ['การแจ้งเตือน',notifs.length,'#A78BFA'],
+        ].map(([label,count,color]) => `
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${color}"></div>
+            <span style="font-size:13px;color:var(--text2)">${label}</span>
+          </div>
+          <span style="font-size:15px;font-weight:700">${count.toLocaleString('th-TH')}</span>
+        </div>`).join('')}
+      </div>
+
+      <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
+        <div class="o-card-title">จัดการข้อมูล</div>
+        <button onclick="seedDemoData()" style="width:100%;padding:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.25);border-radius:8px;color:var(--primary);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;margin-bottom:8px">
+          ⚡ Reset &amp; Seed Demo Data
+        </button>
+        <button onclick="clearAllData()" style="width:100%;padding:10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15);border-radius:8px;color:var(--red);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer">
+          🗑 Clear All Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="o-card">
+    <div class="o-card-title">ข้อมูลสภาพแวดล้อม</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;font-size:13px">
+      <div><span style="color:var(--text3)">Platform: </span>${navigator.platform}</div>
+      <div><span style="color:var(--text3)">Browser: </span>${navigator.userAgent.split(' ').slice(-1)[0]}</div>
+      <div><span style="color:var(--text3)">Language: </span>${navigator.language}</div>
+      <div><span style="color:var(--text3)">Online: </span>${navigator.onLine ? '✓ Online' : '✕ Offline'}</div>
+      <div><span style="color:var(--text3)">Viewport: </span>${window.innerWidth} × ${window.innerHeight}</div>
+      <div><span style="color:var(--text3)">Timezone: </span>${Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
+    </div>
+  </div>`;
+}
+
+function seedDemoData() {
+  if (!confirm('Reset and seed demo data? Current data will be lost.')) return;
+  DB.seedDemo();
+  renderSection('overview');
+  alert('Demo data loaded.');
+}
+
+function clearAllData() {
+  if (!confirm('Clear ALL Orbit HR data from localStorage? This cannot be undone.')) return;
+  Object.keys(localStorage).filter(k => k.startsWith('orbit-')).forEach(k => localStorage.removeItem(k));
+  renderSection('health');
+}
+
+// Enter key support
+document.getElementById('access-code').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlock();
+});
+</script>
+</body>
+</html>

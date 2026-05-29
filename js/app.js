@@ -98,9 +98,10 @@ function buildSidebar(activePage) {
   ];
 
   const adminNav = isAdminOrHR ? [
-    { page: 'employees', href: 'employees.html', icon: 'users',     label: 'พนักงาน' },
-    { page: 'reports',   href: 'reports.html',   icon: 'bar-chart', label: 'รายงาน' },
-    { page: 'settings',  href: 'settings.html',  icon: 'settings',  label: 'ตั้งค่า' },
+    { page: 'employees', href: 'employees.html', icon: 'users',        label: 'พนักงาน' },
+    { page: 'payroll',   href: 'payroll.html',   icon: 'dollar-sign',  label: 'เงินเดือน' },
+    { page: 'reports',   href: 'reports.html',   icon: 'bar-chart',    label: 'รายงาน' },
+    { page: 'settings',  href: 'settings.html',  icon: 'settings',     label: 'ตั้งค่า' },
   ] : [];
 
   const notifCount = DB.Notifications.getUnreadCount(user.id);
@@ -364,19 +365,23 @@ function getWeekDays(mondayStr) {
   return Array.from({length:7}, (_,i) => DB.addDays(mondayStr, i));
 }
 
+function localDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 function getMonthDays(year, month) {
   const first = new Date(year, month, 1);
   const last  = new Date(year, month + 1, 0);
   const days  = [];
   let startDay = first.getDay() || 7;
   for (let i = startDay - 1; i > 0; i--) {
-    days.push({ date: new Date(year, month, 1 - i).toISOString().slice(0,10), current: false });
+    days.push({ date: localDateStr(new Date(year, month, 1 - i)), current: false });
   }
   for (let i = 1; i <= last.getDate(); i++) {
-    days.push({ date: new Date(year, month, i).toISOString().slice(0,10), current: true });
+    days.push({ date: localDateStr(new Date(year, month, i)), current: true });
   }
   for (let i = 1; i <= 42 - days.length; i++) {
-    days.push({ date: new Date(year, month + 1, i).toISOString().slice(0,10), current: false });
+    days.push({ date: localDateStr(new Date(year, month + 1, i)), current: false });
   }
   return days;
 }
@@ -426,6 +431,20 @@ function iconSVG(name, size = '16') {
     'arrow-up':     `<svg ${s}><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
     'arrow-down':   `<svg ${s}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
     'zap':          `<svg ${s}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+    'edit-2':       `<svg ${s}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
+    'camera':       `<svg ${s}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+    'check-circle': `<svg ${s}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    'refresh-cw':   `<svg ${s}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+    'upload':       `<svg ${s}><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>`,
+    'dollar-sign':  `<svg ${s}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+    'credit-card':  `<svg ${s}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+    'shield':       `<svg ${s}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    'info':         `<svg ${s}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    'globe':        `<svg ${s}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    'activity':     `<svg ${s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+    'layers':       `<svg ${s}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+    'package':      `<svg ${s}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+    'pie-chart':    `<svg ${s}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`,
   };
   return icons[name] || icons['bell'];
 }
